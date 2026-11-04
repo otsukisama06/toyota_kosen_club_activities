@@ -1,19 +1,26 @@
-﻿import Link from "next/link";
-import { AttendanceEventType } from "@prisma/client";
+import Link from "next/link";
+import { AttendanceEventType, AttendanceStatus } from "@prisma/client";
 import { redirect } from "next/navigation";
 import {
   addJstDays,
   createJstDate,
   getJstDateParts,
+  getJstDayRangeFromDateKey,
   getJstMonthRangeUtc,
   getJstWeekday,
   nowInJst,
   toDateKey,
 } from "@/lib/date-format";
 import { isJapaneseHolidayDateKey } from "@/lib/japanese-holiday";
+import { autoMarkPreviousDayUnansweredAsAbsent } from "@/lib/attendance-auto-absent";
+import { canAccessAdminByMember } from "@/lib/admin-access";
+import { shouldCountForAttendanceRate } from "@/lib/attendance-rate";
+import { cleanupCompletedExpiredClubTasks } from "@/lib/club-task";
 import { getSessionMember } from "@/lib/member-session";
 import { prisma } from "@/lib/prisma";
 import { fetchActiveAnnouncement } from "@/lib/dual-db-content";
+import { CalendarPdfDownloadButton } from "./calendar-pdf-download-button";
+import { ClubTaskBoard } from "./club-task-board";
 import { FloatingMobileTabs } from "./floating-mobile-tabs";
 import styles from "./home-dashboard.module.css";
 
@@ -67,6 +74,23 @@ function formatCalendarMonth(date: Date): string {
   return `${parts.year} ${parts.month}月`;
 }
 
+function formatJstTime(date: Date): string {
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function formatEventTimeRange(startValue: Date, endValue?: Date | null): string {
+  const startText = formatJstTime(startValue);
+  if (!endValue) {
+    return startText;
+  }
+  return `${startText}-${formatJstTime(endValue)}`;
+}
+
 // 月間カレンダーを 6 週分のマスで作るための日付配列です。
 function buildCalendarDates(baseDate: Date): Date[] {
   const baseParts = getJstDateParts(baseDate);
@@ -88,6 +112,9 @@ export default async function Home({ searchParams }: HomePageProps) {
     redirect("/auth");
   }
 
+  await autoMarkPreviousDayUnansweredAsAbsent(member.id);
+  const canManageClubTasks = canAccessAdminByMember(member);
+
   const currentMonth = parseMonthParam(params.month);
   const currentMonthParts = getJstDateParts(currentMonth);
   const { startUtc: monthStartUtc, endUtc: nextMonthUtc } = getJstMonthRangeUtc(
@@ -99,10 +126,11 @@ export default async function Home({ searchParams }: HomePageProps) {
   const followingMonth = createJstDate(currentMonthParts.year, currentMonthParts.month, 1);
   const dates = buildCalendarDates(currentMonth);
   const todayKey = toDateKey(today);
+  const { startUtc: todayStartUtc, endUtc: todayEndUtc } = getJstDayRangeFromDateKey(todayKey);
   const monthParam = toMonthParam(currentMonth);
   const monthQuery = `?month=${monthParam}`;
 
-  const [events, matches, practiceMenus] = await Promise.all([
+  const [events, practiceMenus, attendanceRecords, latestNote, todayAttendanceEventCount] = await Promise.all([
     prisma.attendanceEvent.findMany({
       where: {
         scheduledAt: {
@@ -115,16 +143,6 @@ export default async function Home({ searchParams }: HomePageProps) {
       },
       orderBy: { scheduledAt: "asc" },
     }),
-    prisma.matchRecord.findMany({
-      where: {
-        attendanceEventId: null,
-        matchDate: {
-          gte: monthStartUtc,
-          lt: nextMonthUtc,
-        },
-      },
-      orderBy: { matchDate: "asc" },
-    }),
     prisma.practiceMenu.findMany({
       where: {
         practiceDate: {
@@ -134,11 +152,84 @@ export default async function Home({ searchParams }: HomePageProps) {
       },
       orderBy: { practiceDate: "asc" },
     }),
+    prisma.attendanceRecord.findMany({
+      where: {
+        memberId: member.id,
+        event: {
+          eventType: {
+            in: [AttendanceEventType.PRACTICE, AttendanceEventType.MATCH],
+          },
+        },
+      },
+      include: {
+        event: true,
+      },
+    }),
+    prisma.kyudoNote.findFirst({
+      where: {
+        memberId: member.id,
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.attendanceEvent.count({
+      where: {
+        scheduledAt: {
+          gte: todayStartUtc,
+          lt: todayEndUtc,
+        },
+      },
+    }),
   ]);
+  let clubTasks: Array<{
+    id: string;
+    title: string;
+    deadlineOn: Date;
+    isCompleted: boolean;
+    completedAt: Date | null;
+    createdBy: { id: string; nickname: string | null } | null;
+    createdAt: Date;
+  }> = [];
+
+  if (canManageClubTasks) {
+    try {
+      await cleanupCompletedExpiredClubTasks();
+      clubTasks = await prisma.clubTask.findMany({
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              nickname: true,
+            },
+          },
+        },
+        orderBy: [{ isCompleted: "asc" }, { deadlineOn: "asc" }, { createdAt: "desc" }],
+      });
+    } catch (error) {
+      // migration 未適用などで ClubTask が読めない場合でもホーム画面は表示を継続します。
+      console.error("[home] failed to fetch club tasks", error);
+    }
+  }
   const activeAnnouncement = await fetchActiveAnnouncement(today);
+
+  // 出席率を計算
+  const validAttendances = attendanceRecords.filter(
+    (record) =>
+      shouldCountForAttendanceRate(record.event.eventType, record.event.scheduledAt, member.attendanceRateStartAt)
+  );
+  const attendCount = validAttendances.filter((record) => record.status === "ATTEND" || record.status === "LATE").length;
+  const attendanceRate = validAttendances.length === 0 ? null : (attendCount / validAttendances.length) * 100;
 
   const scheduleMap = new Map<string, Set<"練習" | "試合">>();
   const eventDetailMap = new Map<string, { practice: string[]; match: string[] }>();
+  const attendanceStatusByDateMap = new Map<string, { registered: number; pending: number }>();
+  const hasSupplementByDateMap = new Map<string, boolean>();
+  const eventResponseStatusMap = new Map<string, AttendanceStatus>();
+  const scheduleTextByDateMap = new Map<string, string[]>();
+  const supplementTextByDateMap = new Map<string, string[]>();
+
+  for (const record of attendanceRecords) {
+    eventResponseStatusMap.set(record.eventId, record.status);
+  }
 
   for (const event of events) {
     const key = toDateKey(event.scheduledAt);
@@ -156,14 +247,30 @@ export default async function Home({ searchParams }: HomePageProps) {
         details.practice.push(detailText);
       }
       eventDetailMap.set(key, details);
+      hasSupplementByDateMap.set(key, true);
     }
-  }
 
-  for (const match of matches) {
-    const key = toDateKey(match.matchDate);
-    const current = scheduleMap.get(key) || new Set<"練習" | "試合">();
-    current.add("試合");
-    scheduleMap.set(key, current);
+    const responseStatus = eventResponseStatusMap.get(event.id);
+    const statusSummary = attendanceStatusByDateMap.get(key) || { registered: 0, pending: 0 };
+    if (!responseStatus || responseStatus === AttendanceStatus.UNKNOWN) {
+      statusSummary.pending += 1;
+    } else {
+      statusSummary.registered += 1;
+    }
+    attendanceStatusByDateMap.set(key, statusSummary);
+
+    const scheduleTexts = scheduleTextByDateMap.get(key) || [];
+    scheduleTexts.push(`${label} ${formatEventTimeRange(event.scheduledAt, event.endAt)}`);
+    scheduleTextByDateMap.set(key, scheduleTexts);
+
+    const supplementTexts = supplementTextByDateMap.get(key) || [];
+    if (event.matchDetail) {
+      supplementTexts.push(`試合詳細: ${event.matchDetail}`);
+    }
+    if (event.note) {
+      supplementTexts.push(`補足: ${event.note}`);
+    }
+    supplementTextByDateMap.set(key, supplementTexts);
   }
 
   for (const practice of practiceMenus) {
@@ -171,11 +278,50 @@ export default async function Home({ searchParams }: HomePageProps) {
     const current = scheduleMap.get(key) || new Set<"練習" | "試合">();
     current.add("練習");
     scheduleMap.set(key, current);
+
+    const scheduleTexts = scheduleTextByDateMap.get(key) || [];
+    scheduleTexts.push("練習 (メニュー)");
+    scheduleTextByDateMap.set(key, scheduleTexts);
+
+    if (practice.detail) {
+      const supplementTexts = supplementTextByDateMap.get(key) || [];
+      supplementTexts.push(`練習メニュー補足: ${practice.detail}`);
+      supplementTextByDateMap.set(key, supplementTexts);
+      hasSupplementByDateMap.set(key, true);
+    }
   }
+
+  const weekdayLabels = ["日", "月", "火", "水", "木", "金", "土"];
+  const hasTodayAttendanceEvent = todayAttendanceEventCount > 0;
+  const daysInMonth = new Date(Date.UTC(currentMonthParts.year, currentMonthParts.month, 0)).getUTCDate();
+  const calendarPdfRows = Array.from({ length: daysInMonth }, (_, dayIndex) => {
+    const day = dayIndex + 1;
+    const date = createJstDate(currentMonthParts.year, currentMonthParts.month - 1, day);
+    const dateKey = toDateKey(date);
+    const weekdayIndex = getJstWeekday(date);
+    const schedules = scheduleTextByDateMap.get(dateKey) || [];
+    const supplements = [...new Set(supplementTextByDateMap.get(dateKey) || [])];
+    return {
+      dateKey,
+      weekdayLabel: weekdayLabels[weekdayIndex],
+      weekdayIndex,
+      isHoliday: isJapaneseHolidayDateKey(dateKey),
+      hasActivity: schedules.length > 0,
+      schedules,
+      supplements,
+    };
+  });
 
   return (
     <div className={styles.page}>
       <main className={styles.main}>
+        {!member.email ? (
+          <section className={styles.emailReminderWindow}>
+            <h2>メールアドレスが未登録です</h2>
+            <p>プロフィール欄からメールアドレスを登録してください。</p>
+          </section>
+        ) : null}
+
         {activeAnnouncement ? (
           <section className={styles.announcementWindow}>
             <h2>サーバ管理者からの通達</h2>
@@ -211,6 +357,10 @@ export default async function Home({ searchParams }: HomePageProps) {
               <Link className={styles.monthButton} href={`/?month=${toMonthParam(followingMonth)}`} aria-label="次の月">▶</Link>
             </div>
           </div>
+          <div className={styles.statusLegend}>
+            <span><strong>済</strong></span>
+            <span><strong>未</strong></span>
+          </div>
           <div className={styles.weekdays}>
             {["日", "月", "火", "水", "木", "金", "土"].map((day) => (
               <span
@@ -237,6 +387,8 @@ export default async function Home({ searchParams }: HomePageProps) {
               const isHoliday = isJapaneseHolidayDateKey(key);
               const eventDetails = eventDetailMap.get(key);
               const schedules = Array.from(scheduleMap.get(key) || []);
+              const attendanceStatusSummary = attendanceStatusByDateMap.get(key);
+              const hasSupplement = hasSupplementByDateMap.get(key) === true;
               const isCurrentMonth =
                 dateParts.year === currentMonthParts.year &&
                 dateParts.month === currentMonthParts.month;
@@ -245,6 +397,7 @@ export default async function Home({ searchParams }: HomePageProps) {
               const cellClassName = [
                 styles.dayCell,
                 isCurrentMonth ? "" : styles.outsideMonth,
+                hasSupplement ? styles.dayHasSupplement : "",
                 isToday ? styles.today : "",
                 (isSunday || isHoliday) ? styles.dayCellHoliday : "",
                 isSaturday ? styles.dayCellSaturday : "",
@@ -263,6 +416,20 @@ export default async function Home({ searchParams }: HomePageProps) {
                   className={cellClassName}
                 >
                   <div className={dayNumberClassName}>{dateParts.day}</div>
+                  {attendanceStatusSummary ? (
+                    <div className={styles.statusRow}>
+                      {attendanceStatusSummary.registered > 0 ? (
+                        <span className={`${styles.statusBadge} ${styles.registeredBadge}`}>
+                          済
+                        </span>
+                      ) : null}
+                      {attendanceStatusSummary.pending > 0 ? (
+                        <span className={`${styles.statusBadge} ${styles.pendingBadge}`}>
+                          未
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <div className={styles.dayItems}>
                     {schedules.map((item, index) => {
                       const detailsByType = item === "試合" ? eventDetails?.match : eventDetails?.practice;
@@ -285,12 +452,61 @@ export default async function Home({ searchParams }: HomePageProps) {
               );
             })}
           </div>
+          {hasTodayAttendanceEvent ? (
+            <div className={styles.calendarBottomAction}>
+              <Link href={`/calendar/${todayKey}?from=home`} className={styles.todayAttendanceRegisterButton}>
+                今日の出席を登録する
+              </Link>
+              <Link href={`/calendar/${todayKey}/attendance-details`} className={styles.todayAttendanceButton}>
+                今日の全部員の出欠詳細を見る
+              </Link>
+            </div>
+          ) : null}
+        </section>
+
+        {canManageClubTasks ? (
+          <ClubTaskBoard tasks={clubTasks} redirectTo={`/?month=${monthParam}`} />
+        ) : null}
+
+        <section className={styles.summaryCard}>
+          <div className={styles.summaryGrid}>
+            <article className={styles.summaryItem}>
+              <h3>出席率</h3>
+              <p className={styles.summaryValue}>
+                {attendanceRate === null ? "データなし" : `${attendanceRate.toFixed(1)}%`}
+              </p>
+              <p className={styles.summarySubtext}></p>
+            </article>
+            {latestNote ? (
+              <article className={styles.summaryItem}>
+                <h3>最新のノート</h3>
+                <p className={styles.latestNoteContent}>{latestNote.content}</p>
+                <Link href="/kyudo-notes" className={styles.summaryLink}>
+                  ノート一覧へ →
+                </Link>
+              </article>
+            ) : (
+              <article className={styles.summaryItem}>
+                <h3>最新のノート</h3>
+                <p className={styles.summarySubtext}>まだノートが作成されていません</p>
+                <Link href="/kyudo-notes" className={styles.summaryLink}>
+                  ノートを作成する →
+                </Link>
+              </article>
+            )}
+          </div>
         </section>
 
         <section className={styles.feedbackSection}>
           <Link href="/feedback" className={styles.feedbackButton}>
             アプリへのフィードバックを送る
           </Link>
+          <CalendarPdfDownloadButton
+            className={styles.feedbackButtonSub}
+            monthLabel={formatCalendarMonth(currentMonth)}
+            monthParam={monthParam}
+            rows={calendarPdfRows}
+          />
         </section>
 
         <FloatingMobileTabs monthQuery={monthQuery} />

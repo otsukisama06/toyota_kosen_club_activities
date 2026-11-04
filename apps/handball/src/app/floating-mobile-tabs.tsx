@@ -37,9 +37,9 @@ export function FloatingMobileTabs({ monthQuery }: FloatingMobileTabsProps) {
       className={`${styles.mobileTabs} ${raised ? styles.mobileTabsRaised : ""}`.trim()}
       aria-label="メイン操作タブ"
     >
-      <Link href={`/self/weight${monthQuery}`} className={styles.mobileTab}>体重入力</Link>
-      <Link href={`/self/weight-history${monthQuery}`} className={styles.mobileTab}>体重推移</Link>
-      <Link href="/match-scores" className={styles.mobileTab}>試合スコア</Link>
+      <Link href="/kyudo-notes" className={styles.mobileTab}>弓道ノート</Link>
+      <Link href="/match-feedbacks" className={styles.mobileTab}>試合振り返り</Link>
+      <Link href="/kyudo-scores" className={styles.mobileTab}>試合結果</Link>
       <Link href={`/self/profile${monthQuery}`} className={styles.mobileTab}>プロフィール</Link>
     </nav>
   );

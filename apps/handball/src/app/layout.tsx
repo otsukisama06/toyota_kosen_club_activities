@@ -3,11 +3,12 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { NavigationLoadingOverlay } from "@/components/navigation-loading-overlay";
 import { SiteCredit } from "@/components/site-credit";
+import { GlobalReleaseNotesPopup } from "./global-release-notes-popup";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Toyota Kyudo Notes",
-  description: "弓道部の出席・体重・試合記録管理アプリ",
+  description: "弓道部の出席・管理アプリ",
 };
 
 export default function RootLayout({
@@ -33,7 +34,11 @@ export default function RootLayout({
         <footer className="globalFooter" aria-label="クレジット表記">
           <SiteCredit />
         </footer>
+        <Suspense fallback={null}>
+          <GlobalReleaseNotesPopup />
+        </Suspense>
       </body>
     </html>
   );
 }
+
