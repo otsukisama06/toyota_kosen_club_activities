@@ -1,12 +1,27 @@
 import Link from "next/link";
-import { AttendanceEventType } from "@prisma/client";
 import { getAuthorizedAdminMember } from "@/lib/admin-access";
 import { nowInJst, toDateTimeLocalValue } from "@/lib/date-format";
+import { getDefaultEventTimesForDateKey } from "@/lib/event-default-times";
 import styles from "../events-management.module.css";
+import { SingleEventCreateForm } from "./single-event-create-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function SingleEventCreatePage() {
+type SingleEventCreatePageProps = {
+  searchParams: Promise<{
+    date?: string;
+  }>;
+};
+
+function normalizeDateParam(value?: string): string | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+  return value;
+}
+
+export default async function SingleEventCreatePage({ searchParams }: SingleEventCreatePageProps) {
+  const params = await searchParams;
   const adminMember = await getAuthorizedAdminMember();
 
   if (!adminMember) {
@@ -24,7 +39,9 @@ export default async function SingleEventCreatePage() {
   }
 
   const now = nowInJst();
-  const defaultDate = toDateTimeLocalValue(now).slice(0, 10);
+  const fallbackDate = toDateTimeLocalValue(now).slice(0, 10);
+  const defaultDate = normalizeDateParam(params.date) || fallbackDate;
+  const defaultTimes = getDefaultEventTimesForDateKey(defaultDate);
 
   return (
     <main className={styles.page}>
@@ -43,37 +60,11 @@ export default async function SingleEventCreatePage() {
 
       <section className={styles.card}>
         <h2>入力フォーム</h2>
-        <form action="/api/events" method="post" className={styles.form}>
-          <input type="hidden" name="redirectTo" value="/admin/events/single" />
-          <label>
-            種別
-            <select name="eventType" defaultValue={AttendanceEventType.PRACTICE}>
-              <option value={AttendanceEventType.PRACTICE}>練習</option>
-              <option value={AttendanceEventType.MATCH}>試合</option>
-            </select>
-          </label>
-          <label>
-            日付
-            <input type="date" name="eventDate" defaultValue={defaultDate} required />
-          </label>
-          <label>
-            時刻 (5分単位)
-            <input type="time" name="eventTime" step={300} defaultValue="19:00" required />
-          </label>
-          <label>
-            対戦相手 (試合の場合)
-            <input type="text" name="matchOpponent" placeholder="例: 豊田北高校" />
-          </label>
-          <label>
-            試合詳細 (試合の場合)
-            <textarea name="matchDetail" rows={2} placeholder="例: 会場、集合時刻、ユニフォーム情報" />
-          </label>
-          <label>
-            補足
-            <textarea name="note" rows={2} />
-          </label>
-          <button type="submit">単体予定を作成</button>
-        </form>
+        <SingleEventCreateForm
+          defaultDate={defaultDate}
+          defaultStartTime={defaultTimes.startTime}
+          defaultEndTime={defaultTimes.endTime}
+        />
       </section>
     </main>
   );

@@ -45,6 +45,16 @@ export default async function SelfProfilePage({ searchParams }: ProfilePageProps
           <form action="/api/self-profile" method="post" className={styles.form}>
             <input type="hidden" name="redirectTo" value={redirectTo} />
             <label>
+              メールアドレス
+              <input
+                type="email"
+                name="email"
+                defaultValue={member.email || ""}
+                placeholder="例: player@example.com"
+                required
+              />
+            </label>
+            <label>
               ニックネーム
               <input
                 type="text"

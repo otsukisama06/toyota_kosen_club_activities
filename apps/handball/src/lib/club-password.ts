@@ -15,4 +15,4 @@ function getClubPassword(): string {
 
 export function isValidClubPassword(password: string | null | undefined): boolean {
   return (password || "") === getClubPassword();
-}
+}

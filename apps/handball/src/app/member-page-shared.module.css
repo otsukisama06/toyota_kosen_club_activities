@@ -364,3 +364,66 @@
     padding: 8px;
   }
 }
+
+/* ---- 卓球アプリから移植した機能用スタイル（弓道の配色に調整） ---- */
+
+.earlyLeave {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.warningText {
+  border: 1px solid #e8b5b5;
+  background: #fff3f3;
+  color: #8f1d1d;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.deleteList {
+  display: grid;
+  gap: 10px;
+}
+
+.deleteItem {
+  border: 1px solid #d4c8b0;
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.deleteItemMeta {
+  display: grid;
+  gap: 4px;
+}
+
+.inlineForm {
+  margin: 0;
+}
+
+.dangerButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #c62b2b;
+  background: #d73939;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+}
+
+.dangerButton:disabled {
+  opacity: 0.7;
+}
+
+@media (max-width: 640px) {
+  .deleteItem {
+    display: grid;
+  }
+}

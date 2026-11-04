@@ -9,11 +9,13 @@ export type SessionMember = {
   id: string;
   name: string;
   nickname: string | null;
+  email: string | null;
   grade: string | null;
   yearlyGoal: string | null;
   monthlyGoal: string | null;
   canAccessAdmin: boolean;
   role: "PLAYER" | "MANAGER" | "COACH" | "ADMIN";
+  attendanceRateStartAt: Date;
   createdAt: Date;
 };
 
@@ -31,11 +33,13 @@ export async function getSessionMember() {
       id: true,
       name: true,
       nickname: true,
+      email: true,
       grade: true,
       yearlyGoal: true,
       monthlyGoal: true,
       canAccessAdmin: true,
       role: true,
+        attendanceRateStartAt: true,
       createdAt: true,
     },
   });

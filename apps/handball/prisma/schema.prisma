@@ -20,6 +20,7 @@ enum AttendanceStatus {
   ATTEND
   ABSENT
   LATE
+  EARLY_LEAVE
   UNKNOWN
 }
 
@@ -46,11 +47,14 @@ model Member {
   id                  String             @id @default(cuid())
   name                String
   nickname            String?            @unique
+  email               String?            @unique
   grade               String?
   yearlyGoal          String?
   monthlyGoal         String?
   canAccessAdmin      Boolean            @default(false)
   role                Role               @default(PLAYER)
+  attendanceRateStartAt DateTime         @default(now())
+   lastActivityAt      DateTime?
   createdAt           DateTime           @default(now())
   attendances         AttendanceRecord[]
   weights             WeightRecord[]
@@ -62,22 +66,40 @@ model Member {
   releaseNotes        ReleaseNote[]      @relation("ReleasesCreatedBy")
   announcements       AdminAnnouncement[] @relation("AnnouncementsCreatedBy")
   feedbacks           Feedback[]
+  matchFeedbacks      MatchFeedback[]
+  kyudoNotes    KyudoNote[]
+  clubTasksCreated    ClubTask[]         @relation("ClubTasksCreatedBy")
+  scoreSheets         KyudoScoreSheet[] @relation("ScoreSheetsByMember")
+}
+
+/// 毎朝 admin に送るラズパイ状態レポートの送信履歴です。
+model DailyAdminStatusReport {
+  id             String   @id @default(cuid())
+  reportDateKey  String   @unique
+  statusText     String
+  sentAt         DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  @@index([sentAt])
 }
 
 /// 出席確認したいイベント本体です。
 model AttendanceEvent {
-  id          String             @id @default(cuid())
-  eventType   AttendanceEventType @default(PRACTICE)
-  title       String
-  scheduledAt DateTime
+  id            String              @id @default(cuid())
+  eventType     AttendanceEventType  @default(PRACTICE)
+  title         String
+  scheduledAt   DateTime
+  endAt         DateTime?
   matchOpponent String?
-  matchDetail String?
-  note        String?
-  createdAt   DateTime           @default(now())
-  records     AttendanceRecord[]
-  tokens      InputToken[]
-  matches     MatchRecord[]
-  draft       MatchScoreDraft?
+  matchDetail   String?
+  note          String?
+  reminderSentAt DateTime?
+  createdAt     DateTime            @default(now())
+  records       AttendanceRecord[]
+  tokens        InputToken[]
+  matches       MatchRecord[]
+  matchFeedbacks MatchFeedback[]
+  draft         MatchScoreDraft?
 }
 
 model AttendanceRecord {
@@ -131,6 +153,24 @@ model PracticeMenu {
   createdByMemberId String?
   createdAt        DateTime @default(now())
   createdBy        Member?  @relation("CreatedPracticeMenus", fields: [createdByMemberId], references: [id], onDelete: SetNull)
+}
+
+/// 部活タスクの共有用データです。
+model ClubTask {
+  id                   String   @id @default(cuid())
+  title                String
+  deadlineOn           DateTime
+  isCompleted          Boolean  @default(false)
+  completedAt          DateTime?
+  notificationDaysBefore Int    @default(3)
+  notifiedAt           DateTime?
+  createdByMemberId    String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  createdBy            Member?  @relation("ClubTasksCreatedBy", fields: [createdByMemberId], references: [id], onDelete: SetNull)
+
+  @@index([isCompleted, deadlineOn])
+  @@index([deadlineOn, notifiedAt])
 }
 
 /// タイマーのプリセットです。標準プリセットとユーザー作成分を保存します。
@@ -279,6 +319,66 @@ model Feedback {
   member             Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@index([createdAt])
+}
+
+/// 試合の振り返りです。各部員が試合ごとに1つ記録できます。
+model MatchFeedback {
+  id          String   @id @default(cuid())
+  attendanceEventId String
+  memberId    String
+  feedback    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+  event       AttendanceEvent @relation(fields: [attendanceEventId], references: [id], onDelete: Cascade)
+  member      Member          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([attendanceEventId, memberId])
+  @@index([attendanceEventId])
+}
+
+/// 弓道ノートです。部員ごとに日付単位で複数件保存できます。
+model KyudoNote {
+  id          String   @id @default(cuid())
+  memberId    String
+  noteDateKey String
+  content     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, noteDateKey])
+  @@index([memberId, createdAt])
+}
+
+/// 弓道スコアシート（複数作成可能）。
+model KyudoScoreSheet {
+  id            String              @id @default(cuid())
+  memberId      String
+  opponent      String
+  matchDate     DateTime
+  comment       String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  member        Member              @relation("ScoreSheetsByMember", fields: [memberId], references: [id], onDelete: Cascade)
+  entries       MatchScoreEntry[]
+
+  @@index([memberId, matchDate])
+}
+
+/// 各セットのスコア記録です。
+model MatchScoreEntry {
+  id              String      @id @default(cuid())
+  scoreSheetId    String
+  setNumber       Int         // 1-5
+  ourScore        Int
+  theirScore      Int
+  winner          String?     // "OUR" or "OPPONENT"
+  comment         String?
+  createdAt       DateTime    @default(now())
+  scoreSheet      KyudoScoreSheet @relation(fields: [scoreSheetId], references: [id], onDelete: Cascade)
+
+  @@unique([scoreSheetId, setNumber])
+  @@index([scoreSheetId])
 }
 
 /// 管理者が期間指定で表示する通達メッセージです。

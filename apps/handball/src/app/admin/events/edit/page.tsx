@@ -13,6 +13,7 @@ import { getAuthorizedAdminMember } from "@/lib/admin-access";
 import { prisma } from "@/lib/prisma";
 import styles from "../events-management.module.css";
 import { HashSmoothScroll } from "./hash-smooth-scroll";
+import { EventEditFormCard } from "./event-edit-form-card";
 
 export const dynamic = "force-dynamic";
 
@@ -194,38 +195,19 @@ export default async function EventEditPage({ searchParams }: EventEditPageProps
         ) : (
           <div className={styles.form}>
             {selectedDateEvents.map((event) => (
-              <form key={event.id} action={`/api/events/${event.id}`} method="post" className={styles.card}>
-                <input type="hidden" name="intent" value="update" />
-                <input type="hidden" name="redirectTo" value={`/admin/events/edit?month=${monthParam}&date=${selectedDateKey}`} />
-                <label>
-                  種別
-                  <select name="eventType" defaultValue={event.eventType}>
-                    <option value={AttendanceEventType.PRACTICE}>練習</option>
-                    <option value={AttendanceEventType.MATCH}>試合</option>
-                  </select>
-                </label>
-                <label>
-                  日付
-                  <input type="date" name="eventDate" defaultValue={toDateTimeLocalValue(event.scheduledAt).slice(0, 10)} required />
-                </label>
-                <label>
-                  時刻 (5分単位)
-                  <input type="time" name="eventTime" step={300} defaultValue={toTimeValue(event.scheduledAt)} required />
-                </label>
-                <label>
-                  対戦相手 (試合の場合)
-                  <input type="text" name="matchOpponent" defaultValue={event.matchOpponent || ""} />
-                </label>
-                <label>
-                  試合詳細 (試合の場合)
-                  <textarea name="matchDetail" rows={2} defaultValue={event.matchDetail || ""} />
-                </label>
-                <label>
-                  メモ
-                  <textarea name="note" rows={2} defaultValue={event.note || ""} />
-                </label>
-                <button type="submit">変更を保存</button>
-              </form>
+              <EventEditFormCard
+                key={event.id}
+                eventId={event.id}
+                defaultEventType={event.eventType}
+                defaultEventDate={toDateTimeLocalValue(event.scheduledAt).slice(0, 10)}
+                defaultEventTime={toTimeValue(event.scheduledAt)}
+                defaultEventEndTime={event.endAt ? toTimeValue(event.endAt) : ""}
+                defaultMatchOpponent={event.matchOpponent || ""}
+                defaultMatchDetail={event.matchDetail || ""}
+                defaultNote={event.note || ""}
+                monthParam={monthParam}
+                selectedDateKey={selectedDateKey}
+              />
             ))}
           </div>
         )}

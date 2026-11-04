@@ -1,10 +1,10 @@
 # Toyota Kosen Club Activities
 
-ハンドボールアプリと卓球アプリを1つの入口に統合した運用用プロジェクトです。
+弓道アプリと卓球アプリを1つの入口に統合した運用用プロジェクトです。
 
 ## 構成
 
-- `apps/handball`: ハンドボールアプリ
+- `apps/handball`: 弓道アプリ（ディレクトリ名・DB名・環境変数名は旧ハンドボール時代の `handball` / `HANDBALL_*` を継続使用。機能は卓球アプリと同等）
 - `apps/table-tennis`: 卓球アプリ
 - `gateway/server.cjs`: 部活選択画面と内部プロキシ
 - `docker-compose.yml`: 統合起動設定
@@ -12,7 +12,7 @@
 
 ## 仕様
 
-- 初回アクセスで部活を選択（ハンドボール or 卓球）
+- 初回アクセスで部活を選択（弓道 or 卓球）
 - 選択後はそれぞれの既存ログイン画面へ遷移
 - ログイン/ユーザ登録時に部活パスワードを追加
   - `HANDBALL_CLUB_PASSWORD`
@@ -23,6 +23,8 @@
 - データベースは部活ごとに分離
   - `handball_notes`
   - `table_tennis_notes`
+- メール送信元アドレス: 弓道は `kyudo@toyotakosenclubnotes.cc` 固定、卓球は `ATTENDANCE_REMINDER_EMAIL_FROM` / `EMAIL_FROM`
+- LINE通知は卓球のみ（`TABLE_TENNIS_LINE_MESSAGING_API_CHANNEL_ACCESS_TOKEN` / `TABLE_TENNIS_LINE_MESSAGING_API_TARGET_ID`）。弓道はLINE通知なし
 
 ## データ永続化
 

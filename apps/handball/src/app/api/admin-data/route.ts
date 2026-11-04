@@ -9,7 +9,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [members, events, attendanceRecords, weightRecords, matches, links] = await Promise.all([
+  const [members, events, attendanceRecords, links] = await Promise.all([
     prisma.member.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.attendanceEvent.findMany({ orderBy: { scheduledAt: "desc" } }),
     prisma.attendanceRecord.findMany({
@@ -17,12 +17,6 @@ export async function GET() {
       orderBy: { submittedAt: "desc" },
       take: 50,
     }),
-    prisma.weightRecord.findMany({
-      include: { member: true },
-      orderBy: { submittedAt: "desc" },
-      take: 50,
-    }),
-    prisma.matchRecord.findMany({ orderBy: { matchDate: "desc" }, take: 50 }),
     prisma.inputToken.findMany({
       include: { member: true, event: true },
       orderBy: { createdAt: "desc" },
@@ -34,8 +28,6 @@ export async function GET() {
     members,
     events,
     attendanceRecords,
-    weightRecords,
-    matches,
     links,
   });
 }

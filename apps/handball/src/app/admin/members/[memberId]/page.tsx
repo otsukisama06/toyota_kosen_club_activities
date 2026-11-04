@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAuthorizedAdminMember } from "@/lib/admin-access";
-import { LocalDate, LocalDateTime } from "@/components/local-date-time";
+import { LocalDate } from "@/components/local-date-time";
 import { prisma } from "@/lib/prisma";
 import styles from "@/app/admin/member-detail-dashboard.module.css";
 
@@ -37,9 +37,7 @@ export default async function MemberOverviewPage({ params, searchParams }: PageP
   const member = await prisma.member.findUnique({
     where: { id: memberId },
     include: {
-      weights: { orderBy: { submittedAt: "desc" }, take: 1 },
       attendances: true,
-      playerScores: true,
     },
   });
 
@@ -47,26 +45,23 @@ export default async function MemberOverviewPage({ params, searchParams }: PageP
     notFound();
   }
 
-  const latestWeight = member.weights[0] ?? null;
   const attendCount = member.attendances.filter((record) => record.status === "ATTEND").length;
   const absentCount = member.attendances.filter((record) => record.status === "ABSENT").length;
   const lateCount = member.attendances.filter((record) => record.status === "LATE").length;
-  const totalGoals = member.playerScores.reduce((sum, score) => sum + score.goals, 0);
-  const totalShotAttempts = member.playerScores.reduce((sum, score) => sum + score.shotAttempts, 0);
-  const scoringRate = totalShotAttempts === 0 ? null : (totalGoals / totalShotAttempts) * 100;
 
   return (
     <main className={styles.page}>
       <header className={styles.header}>
         <h1>{member.name} の管理ページ</h1>
         <p>{member.grade || "学年未設定"} / {member.role}</p>
+        <p>メールアドレス: {member.email || "未登録"}</p>
       </header>
 
       <nav className={styles.nav}>
         <Link className={styles.secondaryLink} href="/admin">管理画面へ戻る</Link>
         <Link className={styles.primaryLink} href={`/admin/members/${member.id}/attendance`}>出席確認</Link>
-        <Link className={styles.primaryLink} href={`/admin/members/${member.id}/weight`}>体重推移</Link>
-        <Link className={styles.primaryLink} href={`/admin/members/${member.id}/scores`}>個人スコア</Link>
+        <Link className={styles.primaryLink} href={`/admin/members/${member.id}/match-feedbacks`}>試合振り返り一覧</Link>
+        <Link className={styles.primaryLink} href={`/admin/members/${member.id}/kyudo-notes`}>弓道ノート一覧</Link>
       </nav>
 
       {sp.error && (
@@ -144,20 +139,16 @@ export default async function MemberOverviewPage({ params, searchParams }: PageP
 
       <section className={styles.metrics}>
         <article className={styles.metricCard}>
-          <div className={styles.metricValue}>{latestWeight ? `${latestWeight.weightKg}kg` : "-"}</div>
-          <div className={styles.metricLabel}>最新体重 {latestWeight ? <LocalDateTime value={latestWeight.submittedAt} /> : "未登録"}</div>
-        </article>
-        <article className={styles.metricCard}>
           <div className={styles.metricValue}>{attendCount}</div>
           <div className={styles.metricLabel}>出席回数</div>
         </article>
         <article className={styles.metricCard}>
-          <div className={styles.metricValue}>{lateCount}</div>
-          <div className={styles.metricLabel}>遅刻回数</div>
+          <div className={styles.metricValue}>{absentCount}</div>
+          <div className={styles.metricLabel}>欠席回数</div>
         </article>
         <article className={styles.metricCard}>
-          <div className={styles.metricValue}>{scoringRate == null ? "-" : `${scoringRate.toFixed(1)}%`}</div>
-          <div className={styles.metricLabel}>得点率</div>
+          <div className={styles.metricValue}>{lateCount}</div>
+          <div className={styles.metricLabel}>遅刻回数</div>
         </article>
       </section>
 
@@ -175,9 +166,7 @@ export default async function MemberOverviewPage({ params, searchParams }: PageP
           <h2>最近の更新</h2>
           <ul className={styles.tableList}>
             <li>部員登録日: <LocalDate value={member.createdAt} /></li>
-            <li>体重記録数: {member.weights.length > 0 ? `${member.weights.length}件以上` : "0件"}</li>
             <li>出席記録数: {member.attendances.length}件</li>
-            <li>得点記録数: {member.playerScores.length}件</li>
           </ul>
         </article>
 

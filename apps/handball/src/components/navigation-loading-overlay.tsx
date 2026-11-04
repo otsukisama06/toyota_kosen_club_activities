@@ -9,15 +9,26 @@ function isInternalHttpUrl(url: URL): boolean {
   return url.origin === window.location.origin && (url.protocol === "http:" || url.protocol === "https:");
 }
 
-function isMatchScorePath(pathname: string): boolean {
-  return pathname.startsWith("/admin/manager/match-score");
-}
-
 export function NavigationLoadingOverlay() {
   const [startRouteKey, setStartRouteKey] = useState<string | null>(null);
+  const [showOverlayState, setShowOverlayState] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentRouteKey = `${pathname}?${searchParams.toString()}`;
+
+  // 3秒タイムアウト：ページ遷移が失敗した場合でもオーバーレイを解除
+  useEffect(() => {
+    if (startRouteKey !== null && startRouteKey === currentRouteKey) {
+      setShowOverlayState(true);
+      const timer = setTimeout(() => {
+        setStartRouteKey(null);
+        setShowOverlayState(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowOverlayState(false);
+    }
+  }, [startRouteKey, currentRouteKey]);
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -64,10 +75,6 @@ export function NavigationLoadingOverlay() {
         return;
       }
 
-      if (isMatchScorePath(nextUrl.pathname)) {
-        return;
-      }
-
       setStartRouteKey(currentRouteKey);
     };
 
@@ -99,9 +106,6 @@ export function NavigationLoadingOverlay() {
       }
 
       if (isInternalHttpUrl(actionUrl)) {
-        if (isMatchScorePath(actionUrl.pathname)) {
-          return;
-        }
         setStartRouteKey(currentRouteKey);
       }
     };
@@ -116,10 +120,7 @@ export function NavigationLoadingOverlay() {
   }, [currentRouteKey]);
 
   const disableByDataAttr = typeof document !== "undefined" && document.body.dataset.disableGlobalNavLoading === "true";
-  const showOverlay = startRouteKey !== null
-    && startRouteKey === currentRouteKey
-    && !disableByDataAttr
-    && !isMatchScorePath(pathname);
+  const showOverlay = showOverlayState && !disableByDataAttr;
 
   if (!showOverlay) {
     return null;

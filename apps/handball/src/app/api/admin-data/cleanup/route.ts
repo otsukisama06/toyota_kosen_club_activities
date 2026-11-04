@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { InputType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getAuthorizedAdminMember, isSuperAdminNickname } from "@/lib/admin-access";
+import { getAuthorizedAdminMember, isSuperAdminNickname, isValidSuperAdminLoginPassword } from "@/lib/admin-access";
 import { buildAppUrl } from "@/lib/request-utils";
-
-const CLEANUP_EXECUTION_PASSWORD = "devdev";
 
 // 予定系データと試合スコア系データを一括削除します。
 export async function POST(request: NextRequest) {
@@ -35,7 +33,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.redirect(redirectUrl, 303);
   }
 
-  if (executionPassword !== CLEANUP_EXECUTION_PASSWORD) {
+  if (!isValidSuperAdminLoginPassword(executionPassword)) {
     redirectUrl.searchParams.set("error", "実行パスワードが違います");
     return NextResponse.redirect(redirectUrl, 303);
   }

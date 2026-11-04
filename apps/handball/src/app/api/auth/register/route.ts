@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
   const redirectUrl = buildAppUrl(request, redirectTo);
 
   const parsed = memberAccountRegisterSchema.safeParse({
+    email: formData.get("email"),
     nickname: formData.get("nickname"),
     grade: formData.get("grade"),
   });
@@ -38,11 +39,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.redirect(redirectUrl, 303);
   }
 
+  const duplicatedEmail = await prisma.member.findUnique({
+    where: { email: parsed.data.email },
+    select: { id: true },
+  });
+
+  if (duplicatedEmail) {
+    redirectUrl.searchParams.set("error", "そのメールアドレスは既に使われています");
+    return NextResponse.redirect(redirectUrl, 303);
+  }
+
   try {
     const createdMember = await prisma.member.create({
       data: {
         name: parsed.data.nickname,
         nickname: parsed.data.nickname,
+        email: parsed.data.email,
         grade: parsed.data.grade,
         role: (isSuperAdminNickname(parsed.data.nickname) ? "ADMIN" : "PLAYER") as never,
         canAccessAdmin: isSuperAdminNickname(parsed.data.nickname),
@@ -53,7 +65,12 @@ export async function POST(request: NextRequest) {
     await setMemberSession(createdMember.id, request);
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      redirectUrl.searchParams.set("error", "そのニックネームは既に使われています");
+      const target = Array.isArray(error.meta?.target) ? error.meta.target.join(",") : "";
+      if (target.includes("email")) {
+        redirectUrl.searchParams.set("error", "そのメールアドレスは既に使われています");
+      } else {
+        redirectUrl.searchParams.set("error", "そのニックネームは既に使われています");
+      }
       return NextResponse.redirect(redirectUrl, 303);
     }
 

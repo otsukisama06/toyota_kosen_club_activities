@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { getAuthorizedAdminMember, isSuperAdminNickname } from "@/lib/admin-access";
-import { toDateKey } from "@/lib/date-format";
+import { filterOutSuperAdminMembers, getAuthorizedAdminMember, isSuperAdminNickname } from "@/lib/admin-access";
+import { shouldCountForAttendanceRate } from "@/lib/attendance-rate";
 import { prisma } from "@/lib/prisma";
 import { sortMembersByGradeAscending } from "@/lib/member-sort";
 import { ManagerMemberTable } from "./manager-member-table";
@@ -9,6 +9,23 @@ import styles from "../admin-dashboard.module.css";
 export const dynamic = "force-dynamic";
 
 type MemberRoleValue = "PLAYER" | "MANAGER" | "COACH" | "ADMIN";
+type GoalRow = { id: string; yearlyGoal: string | null; monthlyGoal: string | null };
+type ManagerMemberSource = {
+  id: string;
+  name: string;
+  nickname: string | null;
+  grade: string | null;
+  role: MemberRoleValue;
+  attendanceRateStartAt: Date;
+  attendances: {
+    status: "ATTEND" | "LATE" | "ABSENT" | "UNKNOWN";
+    event: {
+      eventType: "PRACTICE" | "MATCH";
+      scheduledAt: Date;
+    };
+  }[];
+  playerScores: { goals: number; shotAttempts: number }[];
+};
 
 export default async function AdminManagerPage() {
   const adminMember = await getAuthorizedAdminMember();
@@ -27,16 +44,23 @@ export default async function AdminManagerPage() {
     );
   }
 
-  const members = await prisma.member.findMany({
+  const members = (await prisma.member.findMany({
     select: {
       id: true,
       name: true,
       nickname: true,
       grade: true,
       role: true,
+      attendanceRateStartAt: true,
       attendances: {
         select: {
           status: true,
+          event: {
+            select: {
+              eventType: true,
+              scheduledAt: true,
+            },
+          },
         },
       },
       playerScores: {
@@ -45,41 +69,31 @@ export default async function AdminManagerPage() {
           shotAttempts: true,
         },
       },
-      weights: {
-        orderBy: {
-          submittedAt: "desc",
-        },
-        take: 1,
-        select: {
-          weightKg: true,
-          submittedAt: true,
-        },
-      },
     },
-  });
+  })) as ManagerMemberSource[];
 
-  const goalRows = await prisma.$queryRaw<Array<{ id: string; yearlyGoal: string | null; monthlyGoal: string | null }>>`
+  const goalRows = await prisma.$queryRaw<GoalRow[]>`
     SELECT "id", "yearlyGoal", "monthlyGoal"
     FROM "Member"
   `;
-  const goalMap = new Map(goalRows.map((row) => [row.id, row]));
+  const goalMap = new Map<string, GoalRow>(goalRows.map((row: GoalRow) => [row.id, row]));
 
-  const todayKey = toDateKey(new Date());
-
-  const rows = sortMembersByGradeAscending(members).map((member) => {
+  const rows = filterOutSuperAdminMembers(sortMembersByGradeAscending<ManagerMemberSource>(members)).map((member: ManagerMemberSource) => {
     const role: MemberRoleValue = isSuperAdminNickname(member.nickname)
       ? "ADMIN"
       : (member.role as MemberRoleValue);
+
     const validAttendances = member.attendances.filter((record) =>
-      record.status === "ATTEND" || record.status === "LATE" || record.status === "ABSENT"
+      shouldCountForAttendanceRate(record.event.eventType, record.event.scheduledAt, member.attendanceRateStartAt)
     );
-    const attendCount = validAttendances.filter((record) => record.status === "ATTEND").length;
+    const attendCount = validAttendances.filter((record) => record.status === "ATTEND" || record.status === "LATE").length;
     const attendanceRate =
       validAttendances.length === 0 ? null : (attendCount / validAttendances.length) * 100;
-    const totalGoals = member.playerScores.reduce((sum, score) => sum + score.goals, 0);
-    const totalShotAttempts = member.playerScores.reduce((sum, score) => sum + score.shotAttempts, 0);
+
+    const totalGoals = member.playerScores.reduce((sum: number, score: { goals: number; shotAttempts: number }) => sum + score.goals, 0);
+    const totalShotAttempts = member.playerScores.reduce((sum: number, score: { goals: number; shotAttempts: number }) => sum + score.shotAttempts, 0);
     const scoringRate = totalShotAttempts === 0 ? null : (totalGoals / totalShotAttempts) * 100;
-    const latestWeight = member.weights[0] ?? null;
+
     const goal = goalMap.get(member.id);
 
     return {
@@ -88,12 +102,11 @@ export default async function AdminManagerPage() {
       nickname: member.nickname,
       grade: member.grade,
       role,
+      attendanceRateStartAt: member.attendanceRateStartAt.toISOString(),
       yearlyGoal: goal?.yearlyGoal ?? null,
       monthlyGoal: goal?.monthlyGoal ?? null,
       attendanceRate,
       scoringRate,
-      latestWeightKg: latestWeight?.weightKg ?? null,
-      isLatestWeightToday: latestWeight ? toDateKey(latestWeight.submittedAt) === todayKey : false,
     };
   });
 
@@ -101,7 +114,7 @@ export default async function AdminManagerPage() {
     <main className={styles.page}>
       <header className={styles.header}>
         <h1>マネージャーウィンドウ</h1>
-        <p>部員情報に加えて、出席率・得点率・最新体重を確認できます。</p>
+        <p>部員情報に加えて、出席率・得点率を確認できます。</p>
         <div className={styles.topLinks}>
           <Link className={styles.linkButton} href="/admin">
             管理画面へ戻る
@@ -121,15 +134,6 @@ export default async function AdminManagerPage() {
         </div>
 
         <ManagerMemberTable members={rows} />
-
-        <div className={styles.inlineActions}>
-          <Link className={styles.linkButton} href="/admin/manager/weights">
-            体重一括入力
-          </Link>
-          <Link className={styles.linkButton} href="/admin/manager/match-score">
-            試合スコア入力
-          </Link>
-        </div>
       </section>
 
       <section className={styles.card}>
@@ -140,7 +144,7 @@ export default async function AdminManagerPage() {
           </div>
         </div>
         <Link className={styles.linkButton} href="/admin/manager/goals">
-          目標一覧を開く
+          部員マネージャー
         </Link>
       </section>
     </main>

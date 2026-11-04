@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
     eventType: formData.get("eventType"),
     eventDate: formData.get("eventDate"),
     eventTime: formData.get("eventTime"),
+    eventEndTime: formData.get("eventEndTime") || undefined,
     matchOpponent: formData.get("matchOpponent") || undefined,
     matchDetail: formData.get("matchDetail") || undefined,
     note: formData.get("note") || undefined,
@@ -49,6 +50,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.redirect(redirectUrl, 303);
   }
 
+  const endAt = parsed.data.eventEndTime
+    ? parseJstDateTimeToUtc(parsed.data.eventDate, parsed.data.eventEndTime)
+    : null;
+  if (endAt && Number.isNaN(endAt.getTime())) {
+    redirectUrl.searchParams.set("error", "終了時刻が不正です");
+    return NextResponse.redirect(redirectUrl, 303);
+  }
+
   const title = parsed.data.eventType === AttendanceEventType.MATCH
     ? `試合${parsed.data.matchOpponent ? `: ${parsed.data.matchOpponent}` : ""}`
     : `練習 ${parsed.data.eventDate}`;
@@ -58,6 +67,7 @@ export async function POST(request: NextRequest) {
       eventType: parsed.data.eventType,
       title,
       scheduledAt,
+      endAt,
       matchOpponent: parsed.data.eventType === AttendanceEventType.MATCH ? parsed.data.matchOpponent || null : null,
       matchDetail: parsed.data.eventType === AttendanceEventType.MATCH ? parsed.data.matchDetail || null : null,
       note: parsed.data.note,

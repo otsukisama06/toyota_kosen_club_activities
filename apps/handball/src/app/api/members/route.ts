@@ -23,6 +23,19 @@ export async function POST(request: NextRequest) {
   }
 
   const redirectUrl = buildAppUrl(request, "/admin");
+  const formData = await request.formData();
+  const intent = String(formData.get("intent") || "");
+
+  if (intent === "reset-attendance-rate") {
+    await prisma.member.updateMany({
+      data: {
+        attendanceRateStartAt: new Date(),
+      },
+    });
+
+    redirectUrl.searchParams.set("ok", "attendance-rate-reset");
+    return NextResponse.redirect(redirectUrl, 303);
+  }
 
   redirectUrl.searchParams.set("error", "この操作は利用できません");
   return NextResponse.redirect(redirectUrl, 303);

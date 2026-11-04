@@ -5,7 +5,7 @@ import { selfProfileUpdateSchema } from "@/lib/form-schemas";
 import { getSessionMember } from "@/lib/member-session";
 import { buildAppUrl } from "@/lib/request-utils";
 
-// 本人のプロフィール（ニックネーム/学年/目標）を更新します。
+// 本人のプロフィール（メール/ニックネーム/学年/目標）を更新します。
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const redirectTo = String(formData.get("redirectTo") || "/");
@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
   }
 
   const parsed = selfProfileUpdateSchema.safeParse({
+    email: formData.get("email"),
     nickname: formData.get("nickname"),
     grade: formData.get("grade"),
     yearlyGoal: formData.get("yearlyGoal") || undefined,
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const updateData = {
+      email: parsed.data.email,
       nickname: parsed.data.nickname,
       name: parsed.data.nickname,
       grade: parsed.data.grade,
@@ -45,7 +47,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      redirectUrl.searchParams.set("error", "そのニックネームは既に使われています");
+      const target = Array.isArray(error.meta?.target) ? error.meta.target.join(",") : "";
+      if (target.includes("email")) {
+        redirectUrl.searchParams.set("error", "そのメールアドレスは既に使われています");
+      } else {
+        redirectUrl.searchParams.set("error", "そのニックネームは既に使われています");
+      }
       return NextResponse.redirect(redirectUrl, 303);
     }
 

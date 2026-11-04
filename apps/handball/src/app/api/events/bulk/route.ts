@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
     eventType: formData.get("eventType"),
     eventDate: eventDates[0],
     eventTime: formData.get("eventTime"),
+    eventEndTime: formData.get("eventEndTime") || undefined,
     matchOpponent: formData.get("matchOpponent") || undefined,
     matchDetail: formData.get("matchDetail") || undefined,
     note: formData.get("note") || undefined,
@@ -44,6 +45,9 @@ export async function POST(request: NextRequest) {
 
   const rows = eventDates.map((eventDate) => {
     const scheduledAt = parseJstDateTimeToUtc(eventDate, parsed.data.eventTime);
+    const endAt = parsed.data.eventEndTime
+      ? parseJstDateTimeToUtc(eventDate, parsed.data.eventEndTime)
+      : null;
     const title = parsed.data.eventType === AttendanceEventType.MATCH
       ? `試合${parsed.data.matchOpponent ? `: ${parsed.data.matchOpponent}` : ""}`
       : `練習 ${eventDate}`;
@@ -52,13 +56,14 @@ export async function POST(request: NextRequest) {
       eventType: parsed.data.eventType,
       title,
       scheduledAt,
+      endAt,
       matchOpponent: parsed.data.eventType === AttendanceEventType.MATCH ? parsed.data.matchOpponent || null : null,
       matchDetail: parsed.data.eventType === AttendanceEventType.MATCH ? parsed.data.matchDetail || null : null,
       note: parsed.data.note || null,
     };
   });
 
-  if (rows.some((row) => Number.isNaN(row.scheduledAt.getTime()))) {
+  if (rows.some((row) => Number.isNaN(row.scheduledAt.getTime()) || (row.endAt && Number.isNaN(row.endAt.getTime())))) {
     redirectUrl.searchParams.set("error", "日時が不正です");
     return NextResponse.redirect(redirectUrl, 303);
   }
