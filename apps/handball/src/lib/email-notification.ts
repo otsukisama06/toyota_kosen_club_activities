@@ -1,5 +1,8 @@
 const RESEND_SEND_EMAIL_ENDPOINT = "https://api.resend.com/emails";
 
+// 弓道部の送信元アドレスは固定です（共通の EMAIL_FROM は卓球アプリ用のため参照しません）。
+const KYUDO_EMAIL_FROM = "kyudo@toyotakosenclabnotes.cc";
+
 type SendEmailArgs = {
   to: string;
   message: string;
@@ -16,9 +19,7 @@ function getAttendanceReminderEmailConfig() {
     apiKey:
       normalizeEnvValue(process.env.ATTENDANCE_REMINDER_EMAIL_API_KEY) ||
       normalizeEnvValue(process.env.RESEND_API_KEY),
-    from:
-      normalizeEnvValue(process.env.ATTENDANCE_REMINDER_EMAIL_FROM) ||
-      normalizeEnvValue(process.env.EMAIL_FROM),
+    from: KYUDO_EMAIL_FROM,
   };
 }
 

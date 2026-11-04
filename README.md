@@ -23,6 +23,7 @@
 - データベースは部活ごとに分離
   - `handball_notes`
   - `table_tennis_notes`
+- メール送信元アドレス: 弓道は `kyudo@toyotakosenclabnotes.cc` 固定、卓球は `ATTENDANCE_REMINDER_EMAIL_FROM` / `EMAIL_FROM`
 - LINE通知は卓球のみ（`TABLE_TENNIS_LINE_MESSAGING_API_CHANNEL_ACCESS_TOKEN` / `TABLE_TENNIS_LINE_MESSAGING_API_TARGET_ID`）。弓道はLINE通知なし
 
 ## データ永続化
