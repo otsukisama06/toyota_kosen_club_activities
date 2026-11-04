@@ -110,6 +110,12 @@ export default async function AdminFeedbackPage({ searchParams }: AdminFeedbackP
                   <span>日時: <LocalDateTime value={feedback.createdAt} /></span>
                 </div>
                 <p className={styles.content}>{feedback.content}</p>
+                <form action="/api/feedback" method="post" style={{ display: "inline" }}>
+                  <input type="hidden" name="intent" value="complete" />
+                  <input type="hidden" name="feedbackId" value={feedback.id} />
+                  <input type="hidden" name="redirectTo" value="/admin/feedback" />
+                  <button type="submit" className={styles.completeButton}>完了</button>
+                </form>
               </li>
             ))}
           </ul>

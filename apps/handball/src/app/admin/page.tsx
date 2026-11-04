@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-import { getAuthorizedAdminMember, isSuperAdminNickname } from "@/lib/admin-access";
+import { filterOutSuperAdminMembers, getAuthorizedAdminMember, isSuperAdminNickname } from "@/lib/admin-access";
 import { prisma } from "@/lib/prisma";
 import { sortMembersByGradeAscending } from "@/lib/member-sort";
 import { AdminMemberTable } from "./admin-member-table";
+import { AttendanceRateResetButton } from "./attendance-rate-reset-button";
 import styles from "./admin-dashboard.module.css";
 
 const PRODUCTION_APP_FALLBACK_URL = "https://toyota-kyudo-notes.onrender.com";
@@ -19,7 +20,6 @@ type AdminPageProps = {
   searchParams: Promise<{
     error?: string;
     ok?: string;
-    newToken?: string;
   }>;
 };
 
@@ -46,6 +46,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const canManageRoles = true;
   const canManageSuperAdminFeatures = isSuperAdminNickname(adminMember.nickname);
 
+  interface AdminMember {
+    id: string;
+    name: string;
+    nickname: string | null;
+    grade: string | null;
+    role: "PLAYER" | "MANAGER" | "COACH" | "ADMIN";
+  }
+
   const membersRaw = await prisma.member.findMany({
     select: {
       id: true,
@@ -56,7 +64,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     },
   });
 
-  const members = sortMembersByGradeAscending(membersRaw);
+  const members = filterOutSuperAdminMembers(sortMembersByGradeAscending(membersRaw) as AdminMember[]);
 
   const configuredBaseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL || process.env.RENDER_EXTERNAL_URL || "";
   const forwardedProto = headerStore.get("x-forwarded-proto") || "https";
@@ -84,12 +92,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
       {params.error ? <p className={styles.error}>エラー: {params.error}</p> : null}
       {params.ok ? <p className={styles.ok}>保存しました: {params.ok}</p> : null}
-      {params.newToken ? (
-        <section className={styles.notice}>
-          <p>新しい入力リンクを作成しました。</p>
-          <code>{`${appBaseUrl}/l/${params.newToken}`}</code>
-        </section>
-      ) : null}
 
       <section className={styles.card}>
         <h2>予定管理</h2>
@@ -102,26 +104,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       </section>
 
       <section className={styles.card}>
-        <h2>マネージャーウィンドウ</h2>
-        <p className={styles.meta}>部員一覧に加えて、出席率・累計得点・最新体重を表形式で確認できます。</p>
+        <h2>部員マネージャー</h2>
+        <p className={styles.meta}>出席率、得点率、部員の目標を確認できます。</p>
         <div className={styles.inlineActions}>
           <Link className={styles.linkButton} href="/admin/manager">
-            マネージャー画面へ
+            部員マネージャーウィンドウへ
           </Link>
         </div>
       </section>
-
-      {canManageSuperAdminFeatures && (
-        <section className={styles.card}>
-          <h2>admin 専用機能</h2>
-          <p className={styles.meta}>admin ユーザー専用の管理機能は、専用ページに集約しています。</p>
-          <div className={styles.inlineActions}>
-            <Link className={styles.linkButton} href="/admin/super-admin">
-              admin用画面に遷移
-            </Link>
-          </div>
-        </section>
-      )}
 
       <section className={styles.card}>
         <div className={styles.cardHeader}>
@@ -132,8 +122,28 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </div>
 
         <AdminMemberTable members={members} canManageRoles={canManageRoles} />
+        <div className={styles.inlineActions}>
+          <AttendanceRateResetButton />
+        </div>
+      </section>
+
+      <section className={styles.card}>
+        <h2>管理者専用機能</h2>
+        <div className={styles.inlineActions}>
+          {canManageSuperAdminFeatures ? (
+            <>
+              <Link className={styles.linkButton} href="/admin/super-admin">
+                admin 専用画面
+              </Link>
+              <Link className={styles.linkButton} href="/admin/feedback">
+                フィードバック一覧
+              </Link>
+            </>
+          ) : null}
+        </div>
       </section>
 
     </main>
   );
 }
+

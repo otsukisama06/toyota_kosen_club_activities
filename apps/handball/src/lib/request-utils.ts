@@ -64,3 +64,4 @@ export function buildRedirectUrl(request: NextRequest, redirectTo: string, key?:
 
   return redirectUrl;
 }
+

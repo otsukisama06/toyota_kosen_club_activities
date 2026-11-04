@@ -177,4 +177,24 @@
   .groupCard {
     padding: 16px;
   }
+}
+/* ---- 卓球アプリから移植した機能用スタイル（弓道の配色に調整） ---- */
+
+.manualDownloadLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: #2f5d50;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.manualDownloadLink:hover {
+  background: #1f3f36;
 }
