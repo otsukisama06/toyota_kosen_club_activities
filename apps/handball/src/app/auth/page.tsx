@@ -47,6 +47,10 @@ export default async function AuthPage({ searchParams }: PageProps) {
                 <ClubPasswordField />
               </label>
               <label>
+                メールアドレス
+                <input name="email" type="email" placeholder="例: player@example.com" required />
+              </label>
+              <label>
                 学年
                 <input name="grade" type="text" placeholder="例: 2年" maxLength={20} required />
               </label>

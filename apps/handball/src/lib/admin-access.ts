@@ -1,4 +1,5 @@
 import { getSessionMember } from "@/lib/member-session";
+import { autoMarkPreviousDayUnansweredAsAbsent } from "@/lib/attendance-auto-absent";
 import { timingSafeEqual } from "node:crypto";
 
 const DEFAULT_SUPER_ADMIN_NICKNAME = "admin";
@@ -34,6 +35,10 @@ export function isSuperAdminNickname(nickname: string | null | undefined): boole
   return (nickname || "").toLowerCase() === getSuperAdminNickname().toLowerCase();
 }
 
+export function filterOutSuperAdminMembers<T extends { nickname: string | null }>(members: T[]): T[] {
+  return members.filter((member) => !isSuperAdminNickname(member.nickname));
+}
+
 export function isValidSuperAdminLoginPassword(password: string | null | undefined): boolean {
   return safeEqual(password || "", getSuperAdminLoginPassword());
 }
@@ -53,9 +58,11 @@ export function canAccessAdminByMember(member: { nickname?: string | null; role?
 export async function getAuthorizedAdminMember() {
   const member = await getSessionMember();
 
-  if (!canAccessAdminByMember(member)) {
+  if (!member || !canAccessAdminByMember(member)) {
     return null;
   }
+
+  await autoMarkPreviousDayUnansweredAsAbsent(member.id);
 
   return member;
 }

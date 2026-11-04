@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AttendanceStatus } from "@prisma/client";
 import { getAuthorizedAdminMember } from "@/lib/admin-access";
-import { LocalDateTime } from "@/components/local-date-time";
+import { LocalDateTimeRange } from "@/components/local-date-time";
 import { prisma } from "@/lib/prisma";
 import styles from "@/app/admin/member-detail-dashboard.module.css";
 
@@ -56,8 +56,6 @@ export default async function MemberAttendancePage({ params }: PageProps) {
 
       <nav className={styles.nav}>
         <Link className={styles.secondaryLink} href={`/admin/members/${member.id}`}>部員概要へ</Link>
-        <Link className={styles.primaryLink} href={`/admin/members/${member.id}/weight`}>体重推移</Link>
-        <Link className={styles.primaryLink} href={`/admin/members/${member.id}/scores`}>個人スコア</Link>
       </nav>
 
       <section className={styles.chartGrid}>
@@ -79,7 +77,7 @@ export default async function MemberAttendancePage({ params }: PageProps) {
         <ul className={styles.tableList}>
           {member.attendances.map((record) => (
             <li key={record.id}>
-              <LocalDateTime value={record.event.scheduledAt} /> / {record.event.title} / {record.status}
+              <LocalDateTimeRange startValue={record.event.scheduledAt} endValue={record.event.endAt} /> / {record.event.title} / {record.status}
             </li>
           ))}
           {member.attendances.length === 0 ? <li className={styles.empty}>まだ出席記録はありません。</li> : null}
