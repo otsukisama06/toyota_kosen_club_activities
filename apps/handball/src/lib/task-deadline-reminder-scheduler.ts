@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email-notification";
-import { sendLineNotification } from "@/lib/line-notification";
 import { isSuperAdminNickname } from "@/lib/admin-access";
 import { formatDateTime, toDateKey } from "@/lib/date-format";
 
@@ -52,11 +51,10 @@ function buildTaskDeadlineReminderMessage(task: ClubTaskWithDeadline, adminName:
 async function sweepOnce(): Promise<{
   scanned: number;
   emailSent: number;
-  lineSent: number;
   skipped: boolean;
 }> {
   if (globalThis.__taskDeadlineReminderSweepRunning) {
-    return { scanned: 0, emailSent: 0, lineSent: 0, skipped: true };
+    return { scanned: 0, emailSent: 0, skipped: true };
   }
 
   globalThis.__taskDeadlineReminderSweepRunning = true;
@@ -86,7 +84,7 @@ async function sweepOnce(): Promise<{
     });
 
     if (incompleteTasks.length === 0) {
-      return { scanned: 0, emailSent: 0, lineSent: 0, skipped: false };
+      return { scanned: 0, emailSent: 0, skipped: false };
     }
 
     // 管理者メンバーを取得
@@ -105,7 +103,6 @@ async function sweepOnce(): Promise<{
       .filter((member): member is AdminMember => member.nickname !== null && !isSuperAdminNickname(member.nickname))
 
     let emailSentCount = 0;
-    let lineSentCount = 0;
 
     for (const task of incompleteTasks) {
       // 各管理者に通知
@@ -133,22 +130,6 @@ async function sweepOnce(): Promise<{
         }
       }
 
-      // LINE通知（共通の管理者宛て）
-      if (admins.length > 0) {
-        const lineMessage = buildTaskDeadlineReminderMessage(task, admins[0].nickname);
-        const lineResult = await sendLineNotification(lineMessage);
-
-        if (lineResult.sent) {
-          lineSentCount += 1;
-        } else if (!lineResult.skipped) {
-          console.error("Task deadline reminder LINE notification failed", {
-            taskId: task.id,
-            status: lineResult.status,
-            error: lineResult.error,
-          });
-        }
-      }
-
       // 通知済みとしてマーク
       await prisma.clubTask.update({
         where: { id: task.id },
@@ -159,7 +140,6 @@ async function sweepOnce(): Promise<{
     return {
       scanned: incompleteTasks.length,
       emailSent: emailSentCount,
-      lineSent: lineSentCount,
       skipped: false,
     };
   } finally {
@@ -170,7 +150,6 @@ async function sweepOnce(): Promise<{
 export async function sendTaskDeadlineReminders(): Promise<{
   scanned: number;
   emailSent: number;
-  lineSent: number;
   skipped: boolean;
 }> {
   return sweepOnce();
