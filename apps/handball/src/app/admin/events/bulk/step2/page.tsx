@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { WEEKDAY_DEFAULT_TIME_ROWS } from "@/lib/event-default-times";
 import styles from "../../events-management.module.css";
 
+// Prismaクライアントに依存しないようにローカルで列挙体を定義
 type AttendanceEventType = "PRACTICE" | "MATCH";
 
 const AttendanceEventType = {
@@ -20,6 +21,7 @@ type WeekdaySetting = {
 };
 
 function getDefaultWeekdaySettingsForDate(selectedDate: string): Record<WeekdayKey, WeekdaySetting> {
+  // 選択した日付の曜日を計算
   const [yearText, monthText, dayText] = selectedDate.split("-");
   const year = Number(yearText);
   const month = Number(monthText) - 1;
@@ -27,10 +29,12 @@ function getDefaultWeekdaySettingsForDate(selectedDate: string): Record<WeekdayK
   const date = new Date(year, month, day);
   const weekday = date.getDay();
 
+  // 曜日に合わせたデフォルト値を取得
   const weekdayKeys: WeekdayKey[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
   const currentWeekday = weekdayKeys[weekday];
-  const currentRow = WEEKDAY_DEFAULT_TIME_ROWS.find((row) => row.key === currentWeekday);
+  const currentRow = WEEKDAY_DEFAULT_TIME_ROWS.find(r => r.key === currentWeekday);
 
+  // 全曜日の設定を初期化
   const settings: Record<WeekdayKey, WeekdaySetting> = {
     sun: { startTime: "09:15", endTime: "13:00" },
     mon: { startTime: "15:15", endTime: "18:00" },
@@ -41,6 +45,8 @@ function getDefaultWeekdaySettingsForDate(selectedDate: string): Record<WeekdayK
     sat: { startTime: "09:15", endTime: "13:00" },
   };
 
+  // 選択した日付の曜日のみデフォルト値を設定（他は空にする）
+  // 実際には全曜日表示するので、全曜日にデフォルト値を設定
   if (currentRow) {
     settings[currentWeekday] = { startTime: currentRow.startTime, endTime: currentRow.endTime };
   }
@@ -54,6 +60,7 @@ export default function BulkStep2Page() {
   const datesParam = searchParams.get("dates");
   const eventTypeParam = searchParams.get("eventType");
 
+  // グローバルナビゲーションローディングを無効化（ページ遷移エラーによる無限ローディング防止）
   useEffect(() => {
     document.body.dataset.disableGlobalNavLoading = "true";
     return () => {
@@ -63,7 +70,7 @@ export default function BulkStep2Page() {
 
   const selectedDates = useMemo(() => {
     if (!datesParam) return [];
-    return datesParam.split(",").filter((date: string) => date).sort();
+    return datesParam.split(",").filter((d: string) => d).sort();
   }, [datesParam]);
 
   const eventType = useMemo(() => {
@@ -71,14 +78,16 @@ export default function BulkStep2Page() {
     return eventTypeParam as AttendanceEventType;
   }, [eventTypeParam]);
 
+  // 選択した日付の曜日に合わせた初期設定を計算
   const initialWeekdaySettings = useMemo(() => {
     if (selectedDates.length === 0) {
-      return getDefaultWeekdaySettingsForDate("2024-01-01");
+      return getDefaultWeekdaySettingsForDate("2024-01-01"); // デフォルト（日曜日）
     }
     return getDefaultWeekdaySettingsForDate(selectedDates[0]);
   }, [selectedDates]);
 
   const [weekdaySettings, setWeekdaySettings] = useState<Record<WeekdayKey, WeekdaySetting>>(initialWeekdaySettings);
+
   const [matchOpponent, setMatchOpponent] = useState("");
   const [matchDetail, setMatchDetail] = useState("");
   const [note, setNote] = useState("");
@@ -99,6 +108,7 @@ export default function BulkStep2Page() {
 
     const formData = new FormData(event.currentTarget);
 
+    // 曜日設定をFormDataに追加
     for (const row of WEEKDAY_DEFAULT_TIME_ROWS) {
       const setting = weekdaySettings[row.key];
       formData.set(`${row.key}StartTime`, setting.startTime);
@@ -126,17 +136,6 @@ export default function BulkStep2Page() {
     }
   }
 
-  const selectedWeekday = useMemo(() => {
-    if (selectedDates.length === 0) return 0;
-    const [yearText, monthText, dayText] = selectedDates[0].split("-");
-    const year = Number(yearText);
-    const month = Number(monthText) - 1;
-    const day = Number(dayText);
-    return new Date(year, month, day).getDay();
-  }, [selectedDates]);
-
-  const weekdayKeyMap = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
-
   if (selectedDates.length === 0) {
     return (
       <div className={styles.page}>
@@ -156,6 +155,18 @@ export default function BulkStep2Page() {
       </div>
     );
   }
+
+  // 選択した日付の曜日を計算（useMemoで最適化）
+  const selectedWeekday = useMemo(() => {
+    if (selectedDates.length === 0) return 0;
+    const [yearText, monthText, dayText] = selectedDates[0].split("-");
+    const year = Number(yearText);
+    const month = Number(monthText) - 1;
+    const day = Number(dayText);
+    return new Date(year, month, day).getDay();
+  }, [selectedDates]);
+
+  const weekdayKeyMap = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
   return (
     <div className={styles.page}>
