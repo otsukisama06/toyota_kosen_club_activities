@@ -224,33 +224,3 @@ export async function getRaspberryPiStatus(): Promise<RaspberryPiStatus> {
 
   return baseStatus;
 }
-
-export function formatRaspberryPiStatusMessage(status: RaspberryPiStatus): string {
-  const lines = [
-    "【弓道部】ラズパイ状態レポート",
-    `取得日時: ${status.collectedAt.toISOString()}`,
-    `ホスト: ${status.hostname}`,
-    `OS: ${status.platform} ${status.release} (${status.arch})`,
-    `稼働時間: ${formatUptimeDhms(status.uptimeSeconds)}`,
-    `負荷平均: ${status.loadAverage.map((value) => value.toFixed(2)).join(" / ")}`,
-    `メモリ: ${(status.memory.freeBytes / 1024 / 1024).toFixed(0)}MB free / ${(status.memory.totalBytes / 1024 / 1024).toFixed(0)}MB total`,
-    `ディスク(${status.disk.path}): free=${formatBytes(status.disk.freeBytes)} available=${formatBytes(status.disk.availableBytes)} total=${formatBytes(status.disk.totalBytes)} used=${formatBytes(status.disk.usedBytes)} usage=${status.disk.usagePercent !== null ? `${status.disk.usagePercent}%` : "N/A"}`,
-  ];
-
-  if (status.docker.available) {
-    lines.push(
-      `Docker: ${status.docker.runningContainers ?? 0}/${status.docker.totalContainers ?? 0} 実行中`,
-      `Docker Engine: ${status.docker.serverVersion || "unknown"}`,
-      `Docker OS: ${status.docker.operatingSystem || "unknown"}`,
-      "コンテナ一覧:",
-    );
-
-    for (const container of status.docker.containers) {
-      lines.push(`- ${container.name} [${container.state}] ${container.status}`);
-    }
-  } else {
-    lines.push(`Docker: 利用不可 (${status.docker.error || "unknown error"})`);
-  }
-
-  return lines.join("\n");
-}

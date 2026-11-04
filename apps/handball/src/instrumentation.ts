@@ -3,13 +3,12 @@ export async function register(): Promise<void> {
     return;
   }
 
-  const [attendanceReminderScheduler, dailyAdminStatusScheduler, taskDeadlineReminderScheduler] = await Promise.all([
+  // 毎朝のラズパイ状態レポートは卓球アプリからのみ送信するため、弓道側では起動しません。
+  const [attendanceReminderScheduler, taskDeadlineReminderScheduler] = await Promise.all([
     import("@/lib/attendance-reminder-scheduler"),
-    import("@/lib/admin-daily-status-scheduler"),
     import("@/lib/task-deadline-reminder-scheduler"),
   ]);
 
   attendanceReminderScheduler.startAttendanceReminderScheduler();
-  dailyAdminStatusScheduler.startDailyAdminStatusScheduler();
   taskDeadlineReminderScheduler.startTaskDeadlineReminderScheduler();
 }
