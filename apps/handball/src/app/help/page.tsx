@@ -34,8 +34,6 @@ const FALLBACK_ROUTES = [
   "/self/profile",
   "/self/weight",
   "/self/weight-history",
-  "/match-feedbacks",
-  "/match-feedbacks/[eventId]",
   "/kyudo-notes",
   "/kyudo-notes/today",
   "/kyudo-notes/[dateKey]",
@@ -44,7 +42,6 @@ const FALLBACK_ROUTES = [
   "/admin/events/bulk",
   "/admin/events/edit",
   "/admin/events/single",
-  "/admin/events/[eventId]/feedbacks",
   "/admin/manager",
   "/admin/manager/goals",
   "/admin/feedback",
@@ -53,7 +50,6 @@ const FALLBACK_ROUTES = [
   "/admin/members/[memberId]/attendance",
   "/admin/members/[memberId]/weight",
   "/admin/members/[memberId]/scores",
-  "/admin/members/[memberId]/match-feedbacks",
   "/admin/members/[memberId]/kyudo-notes",
   "/help",
 ];
@@ -175,16 +171,6 @@ const GUIDE_OVERRIDES: Array<{
       "全員の目標を表形式で確認・管理します。",
     ],
     audience: "admin",
-  },
-  {
-    test: (route) => route === "/match-feedbacks",
-    title: "試合フィードバック",
-    summary: "試合後のフィードバックを確認・記録するページです。",
-    steps: [
-      "試合一覧から対象試合を選択します。",
-      "各部員のパフォーマンスやフィードバックを確認・記録します。",
-    ],
-    audience: "member",
   },
   {
     test: (route) => route === "/kyudo-notes",

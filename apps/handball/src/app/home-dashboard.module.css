@@ -349,8 +349,24 @@
 }
 
 .today {
-  border-color: #2f5d50;
-  background: #edf7f0;
+  border-color: #be1026;
+  background: #eff8fe;
+  animation: todayBorderPulse 2.2s ease-in-out infinite;
+}
+
+@keyframes todayBorderPulse {
+  0% {
+    border-color: #be1026;
+    box-shadow: 0 0 0 0 rgba(190, 16, 38, 0.32);
+  }
+  50% {
+    border-color: #ef4a5f;
+    box-shadow: 0 0 0 3px rgba(239, 74, 95, 0.2);
+  }
+  100% {
+    border-color: #be1026;
+    box-shadow: 0 0 0 0 rgba(190, 16, 38, 0.32);
+  }
 }
 
 .dayCellHoliday {

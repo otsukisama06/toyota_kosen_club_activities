@@ -38,8 +38,6 @@ export function FloatingMobileTabs({ monthQuery }: FloatingMobileTabsProps) {
       aria-label="メイン操作タブ"
     >
       <Link href="/kyudo-notes" className={styles.mobileTab}>弓道ノート</Link>
-      <Link href="/match-feedbacks" className={styles.mobileTab}>試合振り返り</Link>
-      <Link href="/kyudo-scores" className={styles.mobileTab}>試合結果</Link>
       <Link href={`/self/profile${monthQuery}`} className={styles.mobileTab}>プロフィール</Link>
     </nav>
   );

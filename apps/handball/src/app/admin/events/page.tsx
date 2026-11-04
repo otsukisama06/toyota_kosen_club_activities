@@ -75,7 +75,6 @@ export default async function EventManagePage({ searchParams }: EventManagePageP
                 <th>種別</th>
                 <th>予定名</th>
                 <th>日時</th>
-                <th>振り返り</th>
                 <th>編集</th>
                 <th>削除</th>
               </tr>
@@ -86,18 +85,6 @@ export default async function EventManagePage({ searchParams }: EventManagePageP
                   <td>{event.eventType === AttendanceEventType.MATCH ? "試合" : "練習"}</td>
                   <td>{event.title}</td>
                   <td><LocalDateTimeRange startValue={event.scheduledAt} endValue={event.endAt} /></td>
-                  <td>
-                    {event.eventType === AttendanceEventType.MATCH ? (
-                      <Link
-                        className={styles.tableActionLink}
-                        href={`/admin/events/${event.id}/feedbacks`}
-                      >
-                        振り返り一覧
-                      </Link>
-                    ) : (
-                      <span className={styles.meta}>-</span>
-                    )}
-                  </td>
                   <td>
                     <Link
                       className={styles.tableActionLink}

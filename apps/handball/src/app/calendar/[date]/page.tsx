@@ -243,12 +243,6 @@ export default async function CalendarDatePage({ params, searchParams }: PagePro
                 出欠詳細情報を見る
               </Link>
 
-              {canManageEvents && event.eventType === "MATCH" ? (
-                <Link href={`/admin/events/${event.id}/feedbacks?returnTo=${encodeURIComponent(`/calendar/${date}?from=home`)}`} className={styles.secondaryLink}>
-                  試合振り返り一覧を見る
-                </Link>
-              ) : null}
-
               <p className={styles.meta}>
                 自分の現在回答: {myRecord ? <>{statusLabel(myRecord.status)} (<LocalDateTime value={myRecord.submittedAt} />)</> : "未回答"}
               </p>

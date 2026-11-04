@@ -60,7 +60,6 @@ export default async function MemberOverviewPage({ params, searchParams }: PageP
       <nav className={styles.nav}>
         <Link className={styles.secondaryLink} href="/admin">管理画面へ戻る</Link>
         <Link className={styles.primaryLink} href={`/admin/members/${member.id}/attendance`}>出席確認</Link>
-        <Link className={styles.primaryLink} href={`/admin/members/${member.id}/match-feedbacks`}>試合振り返り一覧</Link>
         <Link className={styles.primaryLink} href={`/admin/members/${member.id}/kyudo-notes`}>弓道ノート一覧</Link>
       </nav>
 
