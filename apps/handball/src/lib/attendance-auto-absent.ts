@@ -2,7 +2,7 @@ import { AttendanceEventType, AttendanceStatus } from "@prisma/client";
 import { createJstDate, getJstDateParts, nowInJst } from "@/lib/date-format";
 import { prisma } from "@/lib/prisma";
 
-// 前日までの未回答イベントを全員分まとめて出席にします。
+// 前日までの未回答イベントを全員分まとめて欠席にします。
 export async function autoMarkPreviousDayUnansweredAsAbsent(_triggerMemberId?: string) {
   const now = nowInJst();
   const todayParts = getJstDateParts(now);
@@ -59,7 +59,7 @@ export async function autoMarkPreviousDayUnansweredAsAbsent(_triggerMemberId?: s
         missingRecords.push({
           memberId: m.id,
           eventId,
-          status: AttendanceStatus.ATTEND,
+          status: AttendanceStatus.ABSENT,
           submittedAt: now,
         });
       }
@@ -75,7 +75,7 @@ export async function autoMarkPreviousDayUnansweredAsAbsent(_triggerMemberId?: s
         status: AttendanceStatus.UNKNOWN,
       },
       data: {
-        status: AttendanceStatus.ATTEND,
+        status: AttendanceStatus.ABSENT,
         submittedAt: now,
       },
     });
