@@ -65,6 +65,7 @@ app.use((req, res, next) => {
 });
 
 const childProcesses = [];
+let shuttingDown = false;
 
 function ensureRequiredEnv(name) {
 	const value = process.env[name];
@@ -281,10 +282,13 @@ function launchStandaloneApp(label, appDir, port, env) {
 		shell: false,
 	});
 
-	child.on("exit", (code) => {
-		if (code !== 0) {
-			console.error(`${label} exited with code ${code}`);
+	child.on("exit", (code, signal) => {
+		if (shuttingDown) {
+			return;
 		}
+		// 子アプリが落ちたままにならないよう、ゲートウェイごと終了してコンテナの再起動に任せる。
+		console.error(`${label} exited unexpectedly (code=${code}, signal=${signal}); stopping gateway for restart`);
+		shutdown(1);
 	});
 
 	childProcesses.push(child);
@@ -372,6 +376,11 @@ async function startInternalApps() {
 }
 
 app.get("/health", (_req, res) => {
+	const allChildrenAlive = childProcesses.length > 0 && childProcesses.every((child) => child.exitCode === null && child.signalCode === null);
+	if (!allChildrenAlive) {
+		res.status(503).json({ status: "degraded" });
+		return;
+	}
 	res.status(200).json({ status: "ok" });
 });
 
@@ -538,17 +547,18 @@ app.use((err, _req, res, _next) => {
 	sendProxyUnavailable(res);
 });
 
-function shutdown() {
+function shutdown(exitCode = 0) {
+	shuttingDown = true;
 	for (const child of childProcesses) {
-		if (!child.killed) {
+		if (child.exitCode === null && !child.killed) {
 			child.kill("SIGTERM");
 		}
 	}
-	process.exit(0);
+	process.exit(typeof exitCode === "number" ? exitCode : 0);
 }
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+process.on("SIGINT", () => shutdown(0));
+process.on("SIGTERM", () => shutdown(0));
 
 (async () => {
 	try {
