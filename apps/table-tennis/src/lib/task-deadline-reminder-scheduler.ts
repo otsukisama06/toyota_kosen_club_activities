@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email-notification";
 import { sendLineNotification } from "@/lib/line-notification";
 import { isSuperAdminNickname } from "@/lib/admin-access";
-import { formatDateTime, toDateKey } from "@/lib/date-format";
+import { toDateKey } from "@/lib/date-format";
 
 const SCAN_INTERVAL_MS = 5 * 60 * 1000; // 5分間隔
 const MAX_DAYS_AHEAD = 30; // 最大30日前から通知
@@ -20,7 +20,19 @@ type ClubTaskWithDeadline = {
   notificationDaysBefore: number;
   notifiedAt: Date | null;
   createdByMemberId: string | null;
+  createdBy: { nickname: string | null } | null;
 };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// JST の日付単位で、締め切りまでの残り日数を求めます。
+function daysUntilDeadline(deadlineOn: Date, now: Date): number {
+  const [deadlineYear, deadlineMonth, deadlineDay] = toDateKey(deadlineOn).split("-").map(Number);
+  const [todayYear, todayMonth, todayDay] = toDateKey(now).split("-").map(Number);
+  return Math.round(
+    (Date.UTC(deadlineYear, deadlineMonth - 1, deadlineDay) - Date.UTC(todayYear, todayMonth - 1, todayDay)) / DAY_MS,
+  );
+}
 
 declare global {
   // eslint-disable-next-line no-var
@@ -33,16 +45,16 @@ function getPublicBaseUrl(): string {
   return "https://toyotakosenclubnotes.cc";
 }
 
-function buildTaskDeadlineReminderMessage(task: ClubTaskWithDeadline, adminName: string): string {
+function buildTaskDeadlineReminderMessage(task: ClubTaskWithDeadline, remainingDays: number): string {
   const deadlineDate = toDateKey(task.deadlineOn);
-  const daysUntilDeadline = task.notificationDaysBefore;
+  const creatorName = task.createdBy?.nickname || "不明";
   
   const lines = [
     `【卓球部】タスク締め切り通知`,
     `対象タスク: ${task.title}`,
     `締め切り日: ${deadlineDate}`,
-    `残り${daysUntilDeadline}日`,
-    `作成者: ${adminName}`,
+    `残り${remainingDays}日`,
+    `作成者: ${creatorName}`,
     `確認: ${new URL("/club-task-board", getPublicBaseUrl()).toString()}`,
   ];
 
@@ -65,13 +77,13 @@ async function sweepOnce(): Promise<{
     const now = new Date();
     
     // 未完了のタスクを取得
-    const incompleteTasks = await prisma.clubTask.findMany({
+    const candidateTasks = await prisma.clubTask.findMany({
       where: {
         isCompleted: false,
         notifiedAt: null,
         deadlineOn: {
-          gte: new Date(now.getTime() + 24 * 60 * 60 * 1000), // 1日以上先
-          lte: new Date(now.getTime() + MAX_DAYS_AHEAD * 24 * 60 * 60 * 1000), // 30日以内
+          gte: now,
+          lte: new Date(now.getTime() + (MAX_DAYS_AHEAD + 1) * DAY_MS), // 30日以内
         },
       },
       select: {
@@ -81,9 +93,15 @@ async function sweepOnce(): Promise<{
         notificationDaysBefore: true,
         notifiedAt: true,
         createdByMemberId: true,
+        createdBy: { select: { nickname: true } },
       },
       orderBy: { deadlineOn: "asc" },
     });
+
+    // 「締め切りの N 日前」に達したタスクだけを通知対象にします。
+    const incompleteTasks = candidateTasks
+      .map((task) => ({ task, remainingDays: daysUntilDeadline(task.deadlineOn, now) }))
+      .filter(({ task, remainingDays }) => remainingDays >= 1 && remainingDays <= task.notificationDaysBefore);
 
     if (incompleteTasks.length === 0) {
       return { scanned: 0, emailSent: 0, lineSent: 0, skipped: false };
@@ -107,16 +125,16 @@ async function sweepOnce(): Promise<{
     let emailSentCount = 0;
     let lineSentCount = 0;
 
-    for (const task of incompleteTasks) {
+    for (const { task, remainingDays } of incompleteTasks) {
+      const message = buildTaskDeadlineReminderMessage(task, remainingDays);
+
       // 各管理者に通知
       for (const admin of admins) {
-        const message = buildTaskDeadlineReminderMessage(task, admin.nickname);
-
         // メール送信
         if (admin.email) {
           const emailResult = await sendEmail({
             to: admin.email,
-            subject: `【卓球部】タスク締め切りまで${task.notificationDaysBefore}日: ${task.title}`,
+            subject: `【卓球部】タスク締め切りまで${remainingDays}日: ${task.title}`,
             message,
           });
 
@@ -135,8 +153,7 @@ async function sweepOnce(): Promise<{
 
       // LINE通知（共通の管理者宛て）
       if (admins.length > 0) {
-        const lineMessage = buildTaskDeadlineReminderMessage(task, admins[0].nickname);
-        const lineResult = await sendLineNotification(lineMessage);
+        const lineResult = await sendLineNotification(message);
 
         if (lineResult.sent) {
           lineSentCount += 1;
