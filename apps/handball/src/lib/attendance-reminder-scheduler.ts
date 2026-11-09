@@ -42,7 +42,7 @@ function buildReminderMessage(event: AttendanceEventReminder): string {
     "【弓道部】出欠登録のお願い",
     `予定: ${event.title}`,
     `開始: ${formatDateTime(event.scheduledAt)}`,
-    `開始${REMINDER_LEAD_MINUTES}分前です。出欠登録をお願いします。`,
+    `開始まであと約${Math.max(1, Math.round((event.scheduledAt.getTime() - Date.now()) / 60_000))}分です。出欠登録をお願いします。`,
     `確認: ${attendanceUrl}`,
   ];
 
@@ -74,7 +74,8 @@ async function sweepOnce(): Promise<ReminderSweepResult> {
 
   try {
     const now = new Date();
-    const windowStart = new Date(now.getTime() + (REMINDER_LEAD_MINUTES - 1) * 60_000);
+    // 開始45分前を過ぎても未送信の予定（直前に作成・サーバー停止中など）は、開始前であれば送信します。
+    const windowStart = now;
     const windowEnd = new Date(now.getTime() + (REMINDER_LEAD_MINUTES + REMINDER_SCAN_WINDOW_MINUTES - 1) * 60_000);
 
     const dueEvents = await prisma.attendanceEvent.findMany({
