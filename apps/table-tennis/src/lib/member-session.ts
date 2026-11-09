@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 
 const MEMBER_SESSION_COOKIE = "ttn_member_session";
@@ -19,9 +20,63 @@ export type SessionMember = {
   createdAt: Date;
 };
 
+function getSessionSecret(): string {
+  const explicitSecret = process.env.SESSION_SECRET?.trim();
+  if (explicitSecret) {
+    return explicitSecret;
+  }
+
+  // SESSION_SECRET が未設定の場合は、本番で必須の秘密値から署名鍵を導出します。
+  const derivedSource = [
+    process.env.ADMIN_VIEW_KEY,
+    process.env.SUPER_ADMIN_LOGIN_PASSWORD,
+    process.env.CLUB_PASSWORD,
+  ]
+    .map((value) => value?.trim() || "")
+    .join("\u0000");
+
+  if (!derivedSource.replace(/\u0000/g, "")) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("SESSION_SECRET is required in production");
+    }
+    return "dev-member-session-secret";
+  }
+
+  return createHash("sha256").update(`member-session:${derivedSource}`).digest("hex");
+}
+
+function signMemberId(memberId: string): string {
+  return createHmac("sha256", getSessionSecret()).update(memberId).digest("base64url");
+}
+
+function encodeSessionValue(memberId: string): string {
+  return `${memberId}.${signMemberId(memberId)}`;
+}
+
+// 署名付きCookieを検証し、改ざんされていなければ会員IDを返します。
+function decodeSessionValue(value: string | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const separatorIndex = value.lastIndexOf(".");
+  if (separatorIndex <= 0) {
+    return null;
+  }
+
+  const memberId = value.slice(0, separatorIndex);
+  const signature = Buffer.from(value.slice(separatorIndex + 1), "utf8");
+  const expected = Buffer.from(signMemberId(memberId), "utf8");
+  if (signature.length !== expected.length || !timingSafeEqual(signature, expected)) {
+    return null;
+  }
+
+  return memberId;
+}
+
 export async function getSessionMember() {
   const cookieStore = await cookies();
-  const memberId = cookieStore.get(MEMBER_SESSION_COOKIE)?.value;
+  const memberId = decodeSessionValue(cookieStore.get(MEMBER_SESSION_COOKIE)?.value);
 
   if (!memberId) {
     return null;
@@ -62,7 +117,7 @@ function shouldUseSecureCookie(request?: NextRequest): boolean {
 
 export async function setMemberSession(memberId: string, request?: NextRequest) {
   const cookieStore = await cookies();
-  cookieStore.set(MEMBER_SESSION_COOKIE, memberId, {
+  cookieStore.set(MEMBER_SESSION_COOKIE, encodeSessionValue(memberId), {
     httpOnly: true,
     sameSite: "lax",
     secure: shouldUseSecureCookie(request),
