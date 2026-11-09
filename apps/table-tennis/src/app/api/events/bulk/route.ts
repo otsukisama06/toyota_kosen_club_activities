@@ -7,10 +7,13 @@ import { attendanceEventSchema } from "@/lib/form-schemas";
 import { buildRedirectUrl } from "@/lib/request-utils";
 
 function parseEventDates(rawDates: string): string[] {
-  return rawDates
-    .split(",")
-    .map((value) => value.trim())
-    .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value));
+  // 同じ日付が重複して送られても1件だけ作成します。
+  return [...new Set(
+    rawDates
+      .split(",")
+      .map((value) => value.trim())
+      .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value)),
+  )].sort((a, b) => a.localeCompare(b));
 }
 
 export async function POST(request: NextRequest) {
@@ -68,10 +71,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.redirect(redirectUrl, 303);
   }
 
-  await prisma.attendanceEvent.createMany({
-    data: rows,
+  // 同じ日時・種別の予定が既にある場合は二重に作成しません。
+  const existingEvents = await prisma.attendanceEvent.findMany({
+    where: {
+      eventType: parsed.data.eventType,
+      scheduledAt: { in: rows.map((row) => row.scheduledAt) },
+    },
+    select: { scheduledAt: true },
   });
+  const existingTimes = new Set(existingEvents.map((event) => event.scheduledAt.getTime()));
+  const newRows = rows.filter((row) => !existingTimes.has(row.scheduledAt.getTime()));
 
-  redirectUrl.searchParams.set("ok", `event-bulk-${rows.length}`);
+  if (newRows.length > 0) {
+    await prisma.attendanceEvent.createMany({
+      data: newRows,
+    });
+  }
+
+  redirectUrl.searchParams.set("ok", `event-bulk-${newRows.length}`);
   return NextResponse.redirect(redirectUrl, 303);
 }
