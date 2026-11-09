@@ -96,7 +96,8 @@ export async function POST(request: NextRequest) {
 
       await prisma.clubTask.update({
         where: { id: parsed.data.taskId },
-        data: { deadlineOn },
+        // 締め切りを変更したら、新しい締め切りに合わせて再通知します。
+        data: { deadlineOn, notifiedAt: null },
       });
 
       const redirectUrl = buildAppUrl(request, redirectTo);

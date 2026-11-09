@@ -65,6 +65,7 @@ app.use((req, res, next) => {
 });
 
 const childProcesses = [];
+let shuttingDown = false;
 
 function ensureRequiredEnv(name) {
 	const value = process.env[name];
@@ -281,10 +282,13 @@ function launchStandaloneApp(label, appDir, port, env) {
 		shell: false,
 	});
 
-	child.on("exit", (code) => {
-		if (code !== 0) {
-			console.error(`${label} exited with code ${code}`);
+	child.on("exit", (code, signal) => {
+		if (shuttingDown) {
+			return;
 		}
+		// 子アプリが落ちたままにならないよう、ゲートウェイごと終了してコンテナの再起動に任せる。
+		console.error(`${label} exited unexpectedly (code=${code}, signal=${signal}); stopping gateway for restart`);
+		shutdown(1);
 	});
 
 	childProcesses.push(child);
@@ -344,8 +348,9 @@ async function startInternalApps() {
 	if (RUN_DB_MIGRATIONS) {
 		const handballMigrateOk = runWithStatus("npm", ["--prefix", "apps/handball", "run", "db:migrate:deploy"], handballEnv);
 		if (!handballMigrateOk) {
-			console.warn("handball migrate deploy failed; fallback to db:push");
-			runOrFail("npm", ["--prefix", "apps/handball", "run", "db:push"], handballEnv, "handball db push");
+			// データ消失を伴う変更は適用しない（--accept-data-loss なし）。失敗時は起動を中止する。
+			console.warn("handball migrate deploy failed; fallback to db:push:safe");
+			runOrFail("npm", ["--prefix", "apps/handball", "run", "db:push:safe"], handballEnv, "handball db push");
 		}
 
 		const tableTennisMigrateOk = runWithStatus(
@@ -354,8 +359,8 @@ async function startInternalApps() {
 			tableTennisEnv,
 		);
 		if (!tableTennisMigrateOk) {
-			console.warn("table-tennis migrate deploy failed; fallback to db:push");
-			runOrFail("npm", ["--prefix", "apps/table-tennis", "run", "db:push"], tableTennisEnv, "table-tennis db push");
+			console.warn("table-tennis migrate deploy failed; fallback to db:push:safe");
+			runOrFail("npm", ["--prefix", "apps/table-tennis", "run", "db:push:safe"], tableTennisEnv, "table-tennis db push");
 		}
 	} else {
 		console.warn("RUN_DB_MIGRATIONS=false: skip prisma migrations");
@@ -371,6 +376,11 @@ async function startInternalApps() {
 }
 
 app.get("/health", (_req, res) => {
+	const allChildrenAlive = childProcesses.length > 0 && childProcesses.every((child) => child.exitCode === null && child.signalCode === null);
+	if (!allChildrenAlive) {
+		res.status(503).json({ status: "degraded" });
+		return;
+	}
 	res.status(200).json({ status: "ok" });
 });
 
@@ -496,7 +506,8 @@ app.post("/select", express.urlencoded({ extended: false }), (req, res) => {
 		sameSite: "lax",
 		secure: useSecureCookie,
 		path: "/",
-		maxAge: 60 * 60 * 24 * 30,
+		// Express 4 の maxAge はミリ秒指定です（30日）。
+		maxAge: 60 * 60 * 24 * 30 * 1000,
 	});
 
 	res.redirect(303, "/auth");
@@ -536,17 +547,18 @@ app.use((err, _req, res, _next) => {
 	sendProxyUnavailable(res);
 });
 
-function shutdown() {
+function shutdown(exitCode = 0) {
+	shuttingDown = true;
 	for (const child of childProcesses) {
-		if (!child.killed) {
+		if (child.exitCode === null && !child.killed) {
 			child.kill("SIGTERM");
 		}
 	}
-	process.exit(0);
+	process.exit(typeof exitCode === "number" ? exitCode : 0);
 }
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+process.on("SIGINT", () => shutdown(0));
+process.on("SIGTERM", () => shutdown(0));
 
 (async () => {
 	try {

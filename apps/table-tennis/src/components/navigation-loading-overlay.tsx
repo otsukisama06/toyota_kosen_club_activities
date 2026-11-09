@@ -12,24 +12,23 @@ function isInternalHttpUrl(url: URL): boolean {
 
 export function NavigationLoadingOverlay() {
   const [startRouteKey, setStartRouteKey] = useState<string | null>(null);
-  const [showOverlayState, setShowOverlayState] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentRouteKey = `${pathname}?${searchParams.toString()}`;
 
+  // 遷移開始時の画面のままであれば読み込み中を表示します（遷移が完了するとキーが変わり自動で消えます）。
+  const showOverlayState = startRouteKey !== null && startRouteKey === currentRouteKey;
+
   // 3秒タイムアウト：ページ遷移が失敗した場合でもオーバーレイを解除
   useEffect(() => {
-    if (startRouteKey !== null && startRouteKey === currentRouteKey) {
-      setShowOverlayState(true);
-      const timer = setTimeout(() => {
-        setStartRouteKey(null);
-        setShowOverlayState(false);
-      }, 3000);
-      return () => clearTimeout(timer);
-    } else {
-      setShowOverlayState(false);
+    if (!showOverlayState) {
+      return;
     }
-  }, [startRouteKey, currentRouteKey]);
+    const timer = setTimeout(() => {
+      setStartRouteKey(null);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [showOverlayState]);
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {

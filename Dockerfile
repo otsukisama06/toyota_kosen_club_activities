@@ -33,6 +33,9 @@ COPY --from=deps /workspace/apps/table-tennis/node_modules ./apps/table-tennis/n
 COPY --from=deps /workspace/apps/handball/node_modules ./apps/handball/node_modules
 COPY . .
 
+# git では空ディレクトリが消えないため、migration.sql の無い古いマイグレーションディレクトリを除去する（P3015 対策）
+RUN find apps/handball/prisma/migrations apps/table-tennis/prisma/migrations -mindepth 1 -maxdepth 1 -type d -empty -exec rm -rf {} +
+
 ARG BUILD_NODE_OPTIONS=--max-old-space-size=1024
 ENV NODE_OPTIONS=${BUILD_NODE_OPTIONS}
 

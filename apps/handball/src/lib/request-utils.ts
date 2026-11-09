@@ -30,8 +30,22 @@ export function getRequestOrigin(request: NextRequest): string {
   return process.env.NODE_ENV === "production" ? PRODUCTION_APP_FALLBACK_URL : request.nextUrl.origin;
 }
 
+// フォームなどから受け取った遷移先を、アプリ内の相対パスに限定します（外部サイトへのリダイレクト防止）。
+export function toSafeAppPath(path: string | null | undefined, fallback = "/"): string {
+  const value = String(path || "").trim();
+  if (!value.startsWith("/") || value.startsWith("//") || value.includes("\\") || /[\x00-\x1f]/.test(value)) {
+    return fallback;
+  }
+  return value;
+}
+
 export function buildAppUrl(request: NextRequest, path: string): URL {
-  return new URL(path, `${getRequestOrigin(request)}/`);
+  const origin = getRequestOrigin(request);
+  const url = new URL(toSafeAppPath(path), `${origin}/`);
+  if (url.origin !== new URL(`${origin}/`).origin) {
+    return new URL("/", `${origin}/`);
+  }
+  return url;
 }
 
 // 管理キーは URL クエリまたはヘッダーのどちらからでも受け取れるようにしています。

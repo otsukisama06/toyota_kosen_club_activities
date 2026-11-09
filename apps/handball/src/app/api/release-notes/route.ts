@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { releaseNoteSchema } from "@/lib/form-schemas";
 import { getSessionMember } from "@/lib/member-session";
 import { isSuperAdminNickname } from "@/lib/admin-access";
+import { toSafeAppPath } from "@/lib/request-utils";
 import { createReleaseNoteInAllDbs, fetchUnifiedReleaseNotes, hasReleaseNoteVersion } from "@/lib/dual-db-content";
 
 // GET: 全ユーザーがリリースノート一覧を取得できます
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
     const version = formData.get("version") as string;
     const title = formData.get("title") as string;
     const content = formData.get("content") as string;
-    const redirectTo = (formData.get("redirectTo") as string) || "/admin/release-notes";
+    const redirectTo = toSafeAppPath(formData.get("redirectTo") as string | null, "/admin/release-notes");
 
     const parsed = releaseNoteSchema.safeParse({ version, title, content });
 

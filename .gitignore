@@ -11,3 +11,10 @@ apps/handball/.env
 apps/table-tennis/.env
 
 backups/
+
+# ローカル開発で生成される不要ファイル
+*.log
+__pycache__/
+*.pyc
+apps/*/prisma/dev.db
+apps/*/home_response.txt

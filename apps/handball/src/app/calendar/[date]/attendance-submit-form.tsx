@@ -24,6 +24,20 @@ export function AttendanceSubmitForm({
   const [isLoading, setIsLoading] = useState(true);
   const [isFormSubmitting, setIsFormSubmitting] = useState(false);
 
+  // モーダルを閉じてlocalStorageに現在の時刻を保存
+  const closeModal = useCallback(async () => {
+    setIsModalOpen(false);
+    // localStorageに現在時刻を保存（次回以降、このリリースノートを表示しないようにするため）
+    localStorage.setItem('lastReleaseNoteCheck', new Date().toISOString());
+    
+    // DBにもアクティビティ時刻を保存（オプション）
+    try {
+      await fetch('/api/user-last-activity', { method: 'POST' });
+    } catch (e) {
+      console.error('Failed to save last activity to DB:', e);
+    }
+  }, []);
+
   // ESCキーでモーダルを閉じる
   useEffect(() => {
     const handleEscKey = (e: KeyboardEvent) => {
@@ -33,7 +47,7 @@ export function AttendanceSubmitForm({
     };
     document.addEventListener('keydown', handleEscKey);
     return () => document.removeEventListener('keydown', handleEscKey);
-  }, [isModalOpen]);
+  }, [isModalOpen, closeModal]);
 
   // モーダル開封時にボディのスクロールを防止
   useEffect(() => {
@@ -121,20 +135,6 @@ export function AttendanceSubmitForm({
       clearTimeout(timer);
       clearTimeout(timeoutTimer);
     };
-  }, []);
-
-  // モーダルを閉じてlocalStorageに現在の時刻を保存
-  const closeModal = useCallback(async () => {
-    setIsModalOpen(false);
-    // localStorageに現在時刻を保存（次回以降、このリリースノートを表示しないようにするため）
-    localStorage.setItem('lastReleaseNoteCheck', new Date().toISOString());
-    
-    // DBにもアクティビティ時刻を保存（オプション）
-    try {
-      await fetch('/api/user-last-activity', { method: 'POST' });
-    } catch (e) {
-      console.error('Failed to save last activity to DB:', e);
-    }
   }, []);
 
   // フォーム提出時

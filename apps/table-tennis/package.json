@@ -10,6 +10,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:push": "prisma db push --skip-generate --accept-data-loss",
+    "db:push:safe": "prisma db push --skip-generate",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate"
   },
@@ -27,8 +28,8 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^10.1.0",
-    "eslint-config-next": "^0.2.4",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.1.6",
     "typescript": "^5"
   }
 }

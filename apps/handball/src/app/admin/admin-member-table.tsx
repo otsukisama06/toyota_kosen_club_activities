@@ -20,7 +20,7 @@ interface AdminMemberTableProps {
 // クライアント側でのスーパーアドミンニックネーム判定
 function isSuperAdminNickname(nickname: string | null): boolean {
   if (!nickname) return false;
-  return nickname.toLowerCase() === "admin";
+  return nickname === "admin";
 }
 
 export function AdminMemberTable({ members, canManageRoles }: AdminMemberTableProps) {

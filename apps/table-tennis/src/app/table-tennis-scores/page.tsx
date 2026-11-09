@@ -21,7 +21,7 @@ export default async function TableTennisScoresPage() {
   });
 
   // 勝敗数を計算（データベースのスコアから直接計算）
-  const calcSetRecord = (entries: any[]) => {
+  const calcSetRecord = (entries: Array<{ ourScore: number; theirScore: number }>) => {
     let our = 0;
     let their = 0;
     for (const entry of entries) {

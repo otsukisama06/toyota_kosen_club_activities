@@ -6,18 +6,36 @@ import { useParams } from "next/navigation";
 import styles from "@/app/home-dashboard.module.css";
 import { toDateTimeLocalValue } from "@/lib/date-format";
 
+type ScoreEntry = {
+  id?: string;
+  setNumber: number;
+  ourScore: number;
+  theirScore: number;
+  winner?: string | null;
+  comment?: string | null;
+};
+
+type ScoreSheet = {
+  id: string;
+  opponent: string;
+  matchDate: string;
+  comment: string | null;
+  member?: { name: string; nickname: string | null } | null;
+  entries: ScoreEntry[];
+};
+
 export default function EditTableTennisScorePage() {
   const params = useParams();
   const id = params.id as string;
   
-  const [sheet, setSheet] = useState<any>(null);
-  const [entries, setEntries] = useState<any[]>([]);
+  const [sheet, setSheet] = useState<ScoreSheet | null>(null);
+  const [entries, setEntries] = useState<ScoreEntry[]>([]);
   const [matchDate, setMatchDate] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // 勝敗数を計算（データベースのスコアから直接計算）
-  const calcSetRecord = (entries: any[]) => {
+  const calcSetRecord = (entries: ScoreEntry[]) => {
     let our = 0;
     let their = 0;
     for (const entry of entries) {
@@ -46,7 +64,7 @@ export default function EditTableTennisScorePage() {
         setSheet(data.sheet);
         
         // 既存のデータにwinnerフィールドがない場合に計算して補完
-        const entriesWithWinner = (data.sheet.entries || []).map((entry: any) => {
+        const entriesWithWinner = (data.sheet.entries || []).map((entry: ScoreEntry) => {
           if (entry.winner) return entry;
           // winnerがない場合はスコアから計算
           if (entry.ourScore > entry.theirScore) {
@@ -63,8 +81,8 @@ export default function EditTableTennisScorePage() {
         const utcDate = new Date(data.sheet.matchDate);
         const formattedDate = toDateTimeLocalValue(utcDate);
         setMatchDate(formattedDate);
-      } catch (e: any) {
-        setError(e.message);
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "読み込みに失敗しました");
       } finally {
         setLoading(false);
       }
@@ -151,7 +169,7 @@ export default function EditTableTennisScorePage() {
                <span className={styles.setResultScore}>{setRecord.our} 対 {setRecord.their}</span>
              </div>
 
-             {entries.map((entry: any) => (
+             {entries.map((entry: ScoreEntry) => (
                <div key={entry.id} className={styles.setCard}>
                  <h4 className={styles.setLabel}>第{entry.setNumber}セット</h4>
                  
@@ -164,7 +182,7 @@ export default function EditTableTennisScorePage() {
                        name={`entry_${entry.id}_ourScore`}
                        value={entry.ourScore}
                        onChange={(e) => {
-                         const newEntries = entries.map((item: any) => {
+                         const newEntries = entries.map((item: ScoreEntry) => {
                            const updated = { ...item, ourScore: parseInt(e.target.value) || 0 };
                            const our = updated.ourScore;
                            const their = updated.theirScore;
@@ -187,7 +205,7 @@ export default function EditTableTennisScorePage() {
                        name={`entry_${entry.id}_theirScore`}
                        value={entry.theirScore}
                        onChange={(e) => {
-                         const newEntries = entries.map((item: any) => {
+                         const newEntries = entries.map((item: ScoreEntry) => {
                            const updated = { ...item, theirScore: parseInt(e.target.value) || 0 };
                            const our = updated.ourScore;
                            const their = updated.theirScore;
@@ -216,7 +234,7 @@ export default function EditTableTennisScorePage() {
                     name={`entry_${entry.id}_comment`}
                     value={entry.comment || ""}
                     onChange={(e) => {
-                      const newEntries = entries.map((item: any) => 
+                      const newEntries = entries.map((item: ScoreEntry) => 
                         item.id === entry.id ? { ...item, comment: e.target.value } : item
                       );
                       setEntries(newEntries);
@@ -232,7 +250,7 @@ export default function EditTableTennisScorePage() {
             </button>
           </form>
 
-          <form action={`/table-tennis-scores/${sheet.id}/delete`} method="DELETE" className={styles.deleteForm} onSubmit={(e) => { e.preventDefault(); if (!confirm("本当に削除しますか？")) return; fetch(`/table-tennis-scores/${sheet.id}/delete`, { method: 'DELETE' }).then(() => { window.location.href = '/table-tennis-scores'; }); }}>
+          <form action={`/table-tennis-scores/${sheet.id}/delete`} method="DELETE" className={styles.deleteForm} onSubmit={(e) => { e.preventDefault(); if (!confirm("本当に削除しますか？")) return; fetch(`/table-tennis-scores/${sheet.id}/delete`, { method: 'DELETE' }).then(async (res) => { if (!res.ok) { const data = await res.json().catch(() => ({})); alert(data.error || '削除に失敗しました'); return; } window.location.href = '/table-tennis-scores'; }).catch(() => alert('通信エラーが発生しました')); }}>
             <button type="submit" className={styles.deleteButton}>
               削除
             </button>

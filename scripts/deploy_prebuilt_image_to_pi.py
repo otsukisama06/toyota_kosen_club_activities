@@ -125,10 +125,8 @@ def remove_unused_images() -> None:
     run(["docker", "builder", "prune", "-af"])
     print("  ✓ Builder cache removed")
     
-    # 5. Docker system prune（-a ですべての未使用イメージを削除）
-    # 注意: これは全ての未使用イメージを削除するので注意
-    run(["docker", "system", "prune", "-a", "-f", "--volumes"])
-    print("  ✓ Docker system prune -a completed")
+    # 注意: docker system prune -a --volumes は、ビルド直後でコンテナ未使用のデプロイ用イメージや
+    # 他プロジェクトのボリュームまで削除してしまうため実行しない。
     
     # 6. ディスク容量の確認
     run(["docker", "system", "df"])
@@ -445,8 +443,8 @@ def main() -> int:
       "set -e; "
       f"cd {remote_dir}; "
       f"cp {remote_bundle}/docker-compose.prebuilt.yml ./docker-compose.prebuilt.yml; "
-      f"docker compose {env_file_segment} {compose_files_segment} pull {args.service}; "
-      f"docker compose {env_file_segment} {compose_files_segment} {profile_segment}up -d --no-build"
+      + (f"docker compose {env_file_segment} {compose_files_segment} pull {args.service}; " if args.transfer_mode == "registry" else "")
+      + f"docker compose {env_file_segment} {compose_files_segment} {profile_segment}up -d --no-build"
     )
     run_remote(pi_target, remote_script)
 

@@ -56,6 +56,13 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       ? `試合${parsed.data.matchOpponent ? `: ${parsed.data.matchOpponent}` : ""}`
       : `練習 ${parsed.data.eventDate}`;
 
+    const currentEvent = await prisma.attendanceEvent.findUnique({
+      where: { id: eventId },
+      select: { scheduledAt: true },
+    });
+    // 開始日時が変わったときだけリマインダーを再送対象に戻します。
+    const scheduleChanged = !currentEvent || currentEvent.scheduledAt.getTime() !== scheduledAt.getTime();
+
     await prisma.attendanceEvent.update({
       where: { id: eventId },
       data: {
@@ -66,7 +73,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         matchOpponent: parsed.data.eventType === AttendanceEventType.MATCH ? parsed.data.matchOpponent || null : null,
         matchDetail: parsed.data.eventType === AttendanceEventType.MATCH ? parsed.data.matchDetail || null : null,
         note: parsed.data.note || null,
-        reminderSentAt: null,
+        ...(scheduleChanged ? { reminderSentAt: null } : {}),
       },
     });
 

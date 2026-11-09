@@ -136,6 +136,16 @@ export default function BulkStep2Page() {
     }
   }
 
+  // 選択した日付の曜日を計算（フックは早期 return より前に呼ぶ必要があります）
+  const selectedWeekday = useMemo(() => {
+    if (selectedDates.length === 0) return 0;
+    const [yearText, monthText, dayText] = selectedDates[0].split("-");
+    const year = Number(yearText);
+    const month = Number(monthText) - 1;
+    const day = Number(dayText);
+    return new Date(year, month, day).getDay();
+  }, [selectedDates]);
+
   if (selectedDates.length === 0) {
     return (
       <div className={styles.page}>
@@ -155,16 +165,6 @@ export default function BulkStep2Page() {
       </div>
     );
   }
-
-  // 選択した日付の曜日を計算（useMemoで最適化）
-  const selectedWeekday = useMemo(() => {
-    if (selectedDates.length === 0) return 0;
-    const [yearText, monthText, dayText] = selectedDates[0].split("-");
-    const year = Number(yearText);
-    const month = Number(monthText) - 1;
-    const day = Number(dayText);
-    return new Date(year, month, day).getDay();
-  }, [selectedDates]);
 
   const weekdayKeyMap = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
