@@ -66,9 +66,10 @@ while IFS= read -r changed; do
     continue
   fi
 
-  last_run="$now"
   echo "[$(date '+%F %T')] Change detected: $changed"
   if ! redeploy; then
     echo "[$(date '+%F %T')] Redeploy failed. Waiting for next change..."
   fi
+  # ビルド中に溜まった変更イベントで再ビルドしないよう、完了時刻を基準にする
+  last_run="$(date +%s)"
 done
