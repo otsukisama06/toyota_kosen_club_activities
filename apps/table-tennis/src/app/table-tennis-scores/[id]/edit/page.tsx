@@ -232,7 +232,7 @@ export default function EditTableTennisScorePage() {
             </button>
           </form>
 
-          <form action={`/table-tennis-scores/${sheet.id}/delete`} method="DELETE" className={styles.deleteForm} onSubmit={(e) => { e.preventDefault(); if (!confirm("本当に削除しますか？")) return; fetch(`/table-tennis-scores/${sheet.id}/delete`, { method: 'DELETE' }).then(() => { window.location.href = '/table-tennis-scores'; }); }}>
+          <form action={`/table-tennis-scores/${sheet.id}/delete`} method="DELETE" className={styles.deleteForm} onSubmit={(e) => { e.preventDefault(); if (!confirm("本当に削除しますか？")) return; fetch(`/table-tennis-scores/${sheet.id}/delete`, { method: 'DELETE' }).then(async (res) => { if (!res.ok) { const data = await res.json().catch(() => ({})); alert(data.error || '削除に失敗しました'); return; } window.location.href = '/table-tennis-scores'; }).catch(() => alert('通信エラーが発生しました')); }}>
             <button type="submit" className={styles.deleteButton}>
               削除
             </button>
