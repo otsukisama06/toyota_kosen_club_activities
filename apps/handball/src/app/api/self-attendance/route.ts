@@ -29,6 +29,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.redirect(redirectUrl, 303);
   }
 
+  const targetEvent = await prisma.attendanceEvent.findUnique({
+    where: { id: parsed.data.eventId },
+    select: { id: true },
+  });
+
+  if (!targetEvent) {
+    redirectUrl.searchParams.set("error", "対象の予定が見つかりません");
+    return NextResponse.redirect(redirectUrl, 303);
+  }
+
   await prisma.attendanceRecord.upsert({
     where: {
       eventId_memberId: {
