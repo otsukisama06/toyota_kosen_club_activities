@@ -15,7 +15,10 @@ export async function GET(
 
   const sheet = await prisma.tableTennisScoreSheet.findUnique({
     where: { id },
-    include: { entries: { orderBy: { setNumber: "asc" } } },
+    include: {
+      entries: { orderBy: { setNumber: "asc" } },
+      member: { select: { name: true, nickname: true } },
+    },
   });
 
   if (!sheet) {
