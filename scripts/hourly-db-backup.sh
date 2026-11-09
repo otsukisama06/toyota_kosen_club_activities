@@ -102,7 +102,8 @@ sleep_until_next_run() {
 sleep_until_next_run
 
 while true; do
-  backup_one "handball" "handball_notes" "$HANDBALL_DIR"
-  backup_one "table-tennis" "table_tennis_notes" "$TABLE_TENNIS_DIR"
+  # 片方が失敗してももう片方のバックアップは続行する
+  backup_one "handball" "handball_notes" "$HANDBALL_DIR" || true
+  backup_one "table-tennis" "table_tennis_notes" "$TABLE_TENNIS_DIR" || true
   sleep_until_next_run
 done
