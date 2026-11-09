@@ -2,6 +2,9 @@
 import { BulkDatePicker } from "./bulk-date-picker";
 import styles from "../events-management.module.css";
 
+// 初期表示の日付がビルド日で固定されないよう、アクセスのたびに描画します。
+export const dynamic = "force-dynamic";
+
 // デフォルトの日付を計算
 function getDefaultDate(): string {
   const today = new Date();
