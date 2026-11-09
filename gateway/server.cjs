@@ -496,7 +496,8 @@ app.post("/select", express.urlencoded({ extended: false }), (req, res) => {
 		sameSite: "lax",
 		secure: useSecureCookie,
 		path: "/",
-		maxAge: 60 * 60 * 24 * 30,
+		// Express 4 の maxAge はミリ秒指定です（30日）。
+		maxAge: 60 * 60 * 24 * 30 * 1000,
 	});
 
 	res.redirect(303, "/auth");
