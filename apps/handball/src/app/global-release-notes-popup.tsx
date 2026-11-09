@@ -7,6 +7,13 @@ export function GlobalReleaseNotesPopup() {
   const [newNotes, setNewNotes] = useState<Array<{ id: string; version: string; title: string; content: string; createdAt: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // モーダルを閉じてlocalStorageに現在の時刻を保存
+  const closeModal = useCallback(async () => {
+    setIsModalOpen(false);
+    // localStorageに現在時刻を保存（次回以降、このリリースノートを表示しないようにするため）
+    localStorage.setItem('lastReleaseNoteCheck', new Date().toISOString());
+  }, []);
+
   // ESCキーでモーダルを閉じる
   useEffect(() => {
     const handleEscKey = (e: KeyboardEvent) => {
@@ -16,7 +23,7 @@ export function GlobalReleaseNotesPopup() {
     };
     document.addEventListener('keydown', handleEscKey);
     return () => document.removeEventListener('keydown', handleEscKey);
-  }, [isModalOpen]);
+  }, [isModalOpen, closeModal]);
 
   // モーダル開封時にボディのスクロールを防止
   useEffect(() => {
@@ -84,13 +91,6 @@ export function GlobalReleaseNotesPopup() {
     // 少し遅れて実行（ページの初期表示を待機）
     const timer = setTimeout(checkReleaseNotes, 1000);
     return () => clearTimeout(timer);
-  }, []);
-
-  // モーダルを閉じてlocalStorageに現在の時刻を保存
-  const closeModal = useCallback(async () => {
-    setIsModalOpen(false);
-    // localStorageに現在時刻を保存（次回以降、このリリースノートを表示しないようにするため）
-    localStorage.setItem('lastReleaseNoteCheck', new Date().toISOString());
   }, []);
 
   // ローディング中は何も表示しない

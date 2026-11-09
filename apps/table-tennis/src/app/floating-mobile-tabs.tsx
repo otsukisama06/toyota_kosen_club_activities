@@ -82,6 +82,8 @@ export function FloatingMobileTabs({ monthQuery }: FloatingMobileTabsProps) {
   ];
 
   function startTimer(preset: typeof DEFAULT_TIMER_PRESETS[number]) {
+    // クリック時のイベントハンドラ内でのみ呼ばれるため、描画中の不純な呼び出しではない
+    // eslint-disable-next-line react-hooks/purity
     const startedAt = Date.now();
     const setCount = preset.setCount && preset.setCount > 0 ? preset.setCount : 1;
     setTimerState({

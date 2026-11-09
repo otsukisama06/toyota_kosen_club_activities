@@ -2,6 +2,7 @@
 
 import { useState, useReducer, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import styles from "@/app/home-dashboard.module.css";
 import { toDateTimeLocalValue, nowInJst } from "@/lib/date-format";
 
@@ -113,7 +114,7 @@ export default function NewTableTennisScorePage() {
       </header>
 
       <nav className={styles.nav}>
-        <a href="/table-tennis-scores" className={styles.secondaryLink}>試合結果一覧へ戻る</a>
+        <Link href="/table-tennis-scores" className={styles.secondaryLink}>試合結果一覧へ戻る</Link>
       </nav>
 
       <section className={styles.grid}>
