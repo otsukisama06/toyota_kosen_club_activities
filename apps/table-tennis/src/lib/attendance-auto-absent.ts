@@ -19,6 +19,7 @@ export async function autoMarkPreviousDayUnansweredAsAbsent(_triggerMemberId?: s
     },
     select: {
       id: true,
+      scheduledAt: true,
     },
   });
 
@@ -29,7 +30,7 @@ export async function autoMarkPreviousDayUnansweredAsAbsent(_triggerMemberId?: s
   const eventIds = previousEvents.map((event) => event.id);
 
   const members = await prisma.member.findMany({
-    select: { id: true },
+    select: { id: true, createdAt: true },
   });
 
   if (members.length === 0) {
@@ -53,7 +54,12 @@ export async function autoMarkPreviousDayUnansweredAsAbsent(_triggerMemberId?: s
   const missingRecords: Array<{ memberId: string; eventId: string; status: AttendanceStatus; submittedAt: Date }> = [];
 
   for (const m of members) {
-    for (const eventId of eventIds) {
+    for (const event of previousEvents) {
+      // 入部（登録）前のイベントは対象外にします。
+      if (event.scheduledAt < m.createdAt) {
+        continue;
+      }
+      const eventId = event.id;
       const key = `${m.id}:${eventId}`;
       if (!existingKeySet.has(key)) {
         missingRecords.push({
@@ -81,8 +87,10 @@ export async function autoMarkPreviousDayUnansweredAsAbsent(_triggerMemberId?: s
     });
 
     if (missingRecords.length > 0) {
+      // 同時アクセスで同じレコードを作ろうとしても一意制約エラーにならないようにします。
       await tx.attendanceRecord.createMany({
         data: missingRecords,
+        skipDuplicates: true,
       });
     }
   });
