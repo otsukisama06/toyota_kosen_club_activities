@@ -31,8 +31,14 @@ function safeEqual(left: string, right: string): boolean {
   return timingSafeEqual(leftBuffer, rightBuffer);
 }
 
+// スーパーアドミン判定は完全一致のみです（大文字小文字違いのなりすましを防ぐため）。
 export function isSuperAdminNickname(nickname: string | null | undefined): boolean {
-  return (nickname || "").toLowerCase() === getSuperAdminNickname().toLowerCase();
+  return (nickname || "") === getSuperAdminNickname();
+}
+
+// スーパーアドミンと紛らわしいニックネーム（大文字小文字違いを含む）かどうかを判定します。
+export function isReservedSuperAdminNickname(nickname: string | null | undefined): boolean {
+  return (nickname || "").trim().toLowerCase() === getSuperAdminNickname().toLowerCase();
 }
 
 export function filterOutSuperAdminMembers<T extends { nickname: string | null }>(members: T[]): T[] {

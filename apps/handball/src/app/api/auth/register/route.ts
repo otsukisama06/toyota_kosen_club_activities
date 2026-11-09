@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { memberAccountRegisterSchema } from "@/lib/form-schemas";
-import { isSuperAdminNickname } from "@/lib/admin-access";
+import { isReservedSuperAdminNickname, isSuperAdminNickname, isValidSuperAdminLoginPassword } from "@/lib/admin-access";
 import { isValidClubPassword } from "@/lib/club-password";
 import { setMemberSession } from "@/lib/member-session";
 import { buildAppUrl } from "@/lib/request-utils";
@@ -29,8 +29,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.redirect(redirectUrl, 303);
   }
 
-  const duplicated = await prisma.member.findUnique({
-    where: { nickname: parsed.data.nickname },
+  const registeringSuperAdmin = isSuperAdminNickname(parsed.data.nickname);
+  if (isReservedSuperAdminNickname(parsed.data.nickname)) {
+    const adminPassword = String(formData.get("adminPassword") || "");
+    if (!registeringSuperAdmin || !isValidSuperAdminLoginPassword(adminPassword)) {
+      redirectUrl.searchParams.set("error", "そのニックネームは使用できません");
+      return NextResponse.redirect(redirectUrl, 303);
+    }
+  }
+
+  const duplicated = await prisma.member.findFirst({
+    where: { nickname: { equals: parsed.data.nickname, mode: "insensitive" } },
     select: { id: true },
   });
 
@@ -56,8 +65,8 @@ export async function POST(request: NextRequest) {
         nickname: parsed.data.nickname,
         email: parsed.data.email,
         grade: parsed.data.grade,
-        role: (isSuperAdminNickname(parsed.data.nickname) ? "ADMIN" : "PLAYER") as never,
-        canAccessAdmin: isSuperAdminNickname(parsed.data.nickname),
+        role: (registeringSuperAdmin ? "ADMIN" : "PLAYER") as never,
+        canAccessAdmin: registeringSuperAdmin,
       },
       select: { id: true },
     });

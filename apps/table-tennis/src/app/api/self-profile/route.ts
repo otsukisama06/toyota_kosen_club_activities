@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { selfProfileUpdateSchema } from "@/lib/form-schemas";
 import { getSessionMember } from "@/lib/member-session";
+import { isReservedSuperAdminNickname, isSuperAdminNickname } from "@/lib/admin-access";
 import { buildAppUrl } from "@/lib/request-utils";
 
 // 本人のプロフィール（メール/ニックネーム/学年/目標）を更新します。
@@ -28,6 +29,12 @@ export async function POST(request: NextRequest) {
 
   if (!parsed.success) {
     redirectUrl.searchParams.set("error", parsed.error.issues[0]?.message || "入力値が不正です");
+    return NextResponse.redirect(redirectUrl, 303);
+  }
+
+  const nicknameChanged = parsed.data.nickname !== member.nickname;
+  if (nicknameChanged && (isSuperAdminNickname(member.nickname) || isReservedSuperAdminNickname(parsed.data.nickname))) {
+    redirectUrl.searchParams.set("error", "そのニックネームには変更できません");
     return NextResponse.redirect(redirectUrl, 303);
   }
 
