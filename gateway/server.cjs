@@ -344,8 +344,9 @@ async function startInternalApps() {
 	if (RUN_DB_MIGRATIONS) {
 		const handballMigrateOk = runWithStatus("npm", ["--prefix", "apps/handball", "run", "db:migrate:deploy"], handballEnv);
 		if (!handballMigrateOk) {
-			console.warn("handball migrate deploy failed; fallback to db:push");
-			runOrFail("npm", ["--prefix", "apps/handball", "run", "db:push"], handballEnv, "handball db push");
+			// データ消失を伴う変更は適用しない（--accept-data-loss なし）。失敗時は起動を中止する。
+			console.warn("handball migrate deploy failed; fallback to db:push:safe");
+			runOrFail("npm", ["--prefix", "apps/handball", "run", "db:push:safe"], handballEnv, "handball db push");
 		}
 
 		const tableTennisMigrateOk = runWithStatus(
@@ -354,8 +355,8 @@ async function startInternalApps() {
 			tableTennisEnv,
 		);
 		if (!tableTennisMigrateOk) {
-			console.warn("table-tennis migrate deploy failed; fallback to db:push");
-			runOrFail("npm", ["--prefix", "apps/table-tennis", "run", "db:push"], tableTennisEnv, "table-tennis db push");
+			console.warn("table-tennis migrate deploy failed; fallback to db:push:safe");
+			runOrFail("npm", ["--prefix", "apps/table-tennis", "run", "db:push:safe"], tableTennisEnv, "table-tennis db push");
 		}
 	} else {
 		console.warn("RUN_DB_MIGRATIONS=false: skip prisma migrations");
