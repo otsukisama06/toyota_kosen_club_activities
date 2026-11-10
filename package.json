@@ -6,10 +6,10 @@
     "start": "node gateway/server.cjs"
   },
   "dependencies": {
-    "@prisma/client": "^5.0.0",
+    "@prisma/client": "^5.22.0",
     "cookie-parser": "^1.4.7",
-    "express": "^4.21.2",
-    "http-proxy-middleware": "^3.0.3",
-    "prisma": "^5.0.0"
+    "express": "^4.22.3",
+    "http-proxy-middleware": "^3.0.10",
+    "prisma": "^5.22.0"
   }
 }
