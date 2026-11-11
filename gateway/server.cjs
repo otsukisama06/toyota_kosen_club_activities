@@ -82,8 +82,6 @@ function validateStartupSecrets() {
 
 	ensureRequiredEnv("HANDBALL_ADMIN_VIEW_KEY");
 	ensureRequiredEnv("TABLE_TENNIS_ADMIN_VIEW_KEY");
-	ensureRequiredEnv("HANDBALL_CLUB_PASSWORD");
-	ensureRequiredEnv("TABLE_TENNIS_CLUB_PASSWORD");
 	ensureRequiredEnv("HANDBALL_SUPER_ADMIN_LOGIN_PASSWORD");
 	ensureRequiredEnv("TABLE_TENNIS_SUPER_ADMIN_LOGIN_PASSWORD");
 }
@@ -301,7 +299,6 @@ function buildAppEnv(
 	adminKey,
 	nodeOptions,
 	appBaseUrl,
-	clubPassword,
 	superAdminNickname,
 	superAdminLoginPassword,
 ) {
@@ -310,7 +307,6 @@ function buildAppEnv(
 		DATABASE_URL: dbUrl,
 		PEER_DATABASE_URL: peerDbUrl,
 		ADMIN_VIEW_KEY: adminKey,
-		CLUB_PASSWORD: clubPassword,
 		SUPER_ADMIN_NICKNAME: superAdminNickname,
 		SUPER_ADMIN_LOGIN_PASSWORD: superAdminLoginPassword,
 		NEXT_PUBLIC_APP_BASE_URL: appBaseUrl,
@@ -329,7 +325,6 @@ async function startInternalApps() {
 		ensureRequiredEnv("HANDBALL_ADMIN_VIEW_KEY"),
 		process.env.HANDBALL_NODE_OPTIONS || "--max-old-space-size=384",
 		process.env.HANDBALL_PUBLIC_BASE_URL || `http://localhost:${HANDBALL_EXTERNAL_PORT}`,
-		ensureRequiredEnv("HANDBALL_CLUB_PASSWORD"),
 		process.env.HANDBALL_SUPER_ADMIN_NICKNAME || "admin",
 		ensureRequiredEnv("HANDBALL_SUPER_ADMIN_LOGIN_PASSWORD"),
 	);
@@ -340,7 +335,6 @@ async function startInternalApps() {
 		ensureRequiredEnv("TABLE_TENNIS_ADMIN_VIEW_KEY"),
 		process.env.TABLE_TENNIS_NODE_OPTIONS || "--max-old-space-size=384",
 		process.env.TABLE_TENNIS_PUBLIC_BASE_URL || `http://localhost:${TABLE_TENNIS_EXTERNAL_PORT}`,
-		ensureRequiredEnv("TABLE_TENNIS_CLUB_PASSWORD"),
 		process.env.TABLE_TENNIS_SUPER_ADMIN_NICKNAME || "admin",
 		ensureRequiredEnv("TABLE_TENNIS_SUPER_ADMIN_LOGIN_PASSWORD"),
 	);

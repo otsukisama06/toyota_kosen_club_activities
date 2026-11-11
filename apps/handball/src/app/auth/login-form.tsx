@@ -2,19 +2,19 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import styles from "./auth.module.css";
-import { ClubPasswordField } from "./club-password-field";
+import { PasswordField } from "./password-field";
 
 export function LoginForm() {
   const formRef = useRef<HTMLFormElement>(null);
   const adminPasswordHiddenRef = useRef<HTMLInputElement>(null);
-  const [nickname, setNickname] = useState("");
+  const [loginId, setLoginId] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [modalError, setModalError] = useState("");
 
   const isAdminNickname = useMemo(
-    () => nickname.trim().toLowerCase() === "admin",
-    [nickname],
+    () => loginId.trim().toLowerCase() === "admin",
+    [loginId],
   );
 
   useEffect(() => {
@@ -81,22 +81,22 @@ export function LoginForm() {
         onSubmit={onSubmit}
         data-disable-global-nav-loading="true"
       >
-        <input type="hidden" name="redirectTo" value="/auth" />
         <input ref={adminPasswordHiddenRef} type="hidden" name="adminPassword" defaultValue="" />
         <label>
-          ニックネーム
+          ニックネームまたはメールアドレス
           <input
-            name="nickname"
+            name="loginId"
             type="text"
             placeholder="例: yuta_8"
+            autoComplete="username"
             required
-            value={nickname}
-            onChange={(event) => setNickname(event.target.value)}
+            value={loginId}
+            onChange={(event) => setLoginId(event.target.value)}
           />
         </label>
         <label>
-          部活パスワード
-          <ClubPasswordField />
+          パスワード
+          <PasswordField />
         </label>
         <button type="submit">ログインする</button>
       </form>
@@ -105,7 +105,7 @@ export function LoginForm() {
         <div className={styles.modalOverlay} role="presentation">
           <section className={styles.modalCard} role="dialog" aria-modal="true" aria-labelledby="admin-password-title">
             <h3 id="admin-password-title">admin ログイン確認</h3>
-            <p className={styles.meta}>admin でログインするにはパスワードを入力してください。</p>
+            <p className={styles.meta}>admin でログインするには追加のパスワードを入力してください。</p>
             <label className={styles.modalLabel}>
               パスワード
               <input

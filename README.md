@@ -14,9 +14,13 @@
 
 - 初回アクセスで部活を選択（弓道 or 卓球）
 - 選択後はそれぞれの既存ログイン画面へ遷移
-- ログイン/ユーザ登録時に部活パスワードを追加
-  - `HANDBALL_CLUB_PASSWORD`
-  - `TABLE_TENNIS_CLUB_PASSWORD`
+- ログインは個人パスワード＋メールの6桁確認コード（二段階認証）
+  - ログイン: ニックネーム（またはメールアドレス）とパスワードを入力 → 登録メールアドレスに届く確認コードを入力
+  - 新規登録: 確認コードでメールアドレスを確認してからアカウントを作成
+  - パスワード再設定: 登録メールアドレスに届く確認コードで再設定（部活共通パスワード時代の既存ユーザの初回設定も同じ画面）
+  - 確認コードは10分有効・5回まで入力可・再送信は60秒間隔。パスワードを10回間違えると15分ロック
+  - メールが未登録の既存ユーザは、管理画面の部員詳細でメールアドレスを登録してから設定する
+  - 確認コードのメール送信に `ATTENDANCE_REMINDER_EMAIL_API_KEY`（または `RESEND_API_KEY`）が必須。卓球は送信元 `ATTENDANCE_REMINDER_EMAIL_FROM`（または `EMAIL_FROM`）も必須
 - `admin` の追加確認パスワードは環境変数で設定
   - `HANDBALL_SUPER_ADMIN_LOGIN_PASSWORD`
   - `TABLE_TENNIS_SUPER_ADMIN_LOGIN_PASSWORD`
@@ -291,11 +295,6 @@ POSTGRES_PASSWORD=強力なパスワードを設定
 HANDBALL_ADMIN_VIEW_KEY=ランダムな文字列1
 TABLE_TENNIS_ADMIN_VIEW_KEY=ランダムな文字列2
 
-# === 部活パスワード ===
-# 部員に伝えるパスワード
-HANDBALL_CLUB_PASSWORD=部活用パスワード
-TABLE_TENNIS_CLUB_PASSWORD=部活用パスワード
-
 # === スーパー管理者ログイン用パスワード ===
 HANDBALL_SUPER_ADMIN_NICKNAME=admin
 HANDBALL_SUPER_ADMIN_LOGIN_PASSWORD=管理者用パスワード
@@ -306,7 +305,7 @@ TABLE_TENNIS_SUPER_ADMIN_LOGIN_PASSWORD=管理者用パスワード
 TABLE_TENNIS_LINE_MESSAGING_API_CHANNEL_ACCESS_TOKEN=
 TABLE_TENNIS_LINE_MESSAGING_API_TARGET_ID=
 
-# === メール通知（オプション）===
+# === メール送信（ログイン確認コードの送信に必須）===
 ATTENDANCE_REMINDER_EMAIL_API_KEY=
 ATTENDANCE_REMINDER_EMAIL_FROM=
 RESEND_API_KEY=
@@ -504,8 +503,8 @@ docker compose logs -f app
 | `POSTGRES_PASSWORD` | PostgreSQLパスワード | 強力なパスワード |
 | `HANDBALL_ADMIN_VIEW_KEY` | ハンドボール管理画面キー | ランダム文字列 |
 | `TABLE_TENNIS_ADMIN_VIEW_KEY` | 卓球管理画面キー | ランダム文字列 |
-| `HANDBALL_CLUB_PASSWORD` | ハンドボール部活パスワード | 部員に伝える値 |
-| `TABLE_TENNIS_CLUB_PASSWORD` | 卓球部活パスワード | 部員に伝える値 |
+| `ATTENDANCE_REMINDER_EMAIL_API_KEY` または `RESEND_API_KEY` | メール送信APIキー（ログイン確認コードの送信に必須） | `re_...` |
+| `ATTENDANCE_REMINDER_EMAIL_FROM` または `EMAIL_FROM` | 卓球の送信元メールアドレス（弓道は固定） | `table-tennis@example.com` |
 | `HANDBALL_SUPER_ADMIN_LOGIN_PASSWORD` | ハンドボール管理者パスワード | 強力なパスワード |
 | `TABLE_TENNIS_SUPER_ADMIN_LOGIN_PASSWORD` | 卓球管理者パスワード | 強力なパスワード |
 

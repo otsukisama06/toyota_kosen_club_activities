@@ -3,17 +3,21 @@
 import { useState } from "react";
 import styles from "./auth.module.css";
 
-type ClubPasswordFieldProps = {
+type PasswordFieldProps = {
   name?: string;
   placeholder?: string;
   required?: boolean;
+  autoComplete?: string;
+  minLength?: number;
 };
 
-export function ClubPasswordField({
-  name = "clubPassword",
-  placeholder = "部活共通パスワード",
+export function PasswordField({
+  name = "password",
+  placeholder = "パスワード",
   required = true,
-}: ClubPasswordFieldProps) {
+  autoComplete = "current-password",
+  minLength,
+}: PasswordFieldProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
@@ -23,6 +27,9 @@ export function ClubPasswordField({
         type={isVisible ? "text" : "password"}
         placeholder={placeholder}
         required={required}
+        autoComplete={autoComplete}
+        minLength={minLength}
+        maxLength={128}
       />
       <button
         type="button"

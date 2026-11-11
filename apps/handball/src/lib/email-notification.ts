@@ -1,5 +1,8 @@
 const RESEND_SEND_EMAIL_ENDPOINT = "https://api.resend.com/emails";
 
+// メール件名・本文に使う部活名です。
+export const CLUB_EMAIL_LABEL = "弓道部";
+
 // 弓道部の送信元アドレスは固定です（共通の EMAIL_FROM は卓球アプリ用のため参照しません）。
 const KYUDO_EMAIL_FROM = "kyudo@toyotakosenclubnotes.cc";
 

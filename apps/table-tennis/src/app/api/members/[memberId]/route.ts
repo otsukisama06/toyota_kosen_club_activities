@@ -92,6 +92,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   const parsed = memberUpdateSchema.safeParse({
+    email: formData.get("email") ?? undefined,
     nickname: formData.get("nickname"),
     grade: formData.get("grade") || undefined,
   });
@@ -128,11 +129,17 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         nickname: parsed.data.nickname,
         name: parsed.data.nickname,
         grade: parsed.data.grade,
+        // 空欄の場合はメールアドレスを変更しません（ログインの確認コード送信先のため）。
+        ...(parsed.data.email ? { email: parsed.data.email } : {}),
       },
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      redirectUrl.searchParams.set("error", "そのニックネームは既に使われています");
+      const target = Array.isArray(error.meta?.target) ? error.meta.target.join(",") : "";
+      redirectUrl.searchParams.set(
+        "error",
+        target.includes("email") ? "そのメールアドレスは既に使われています" : "そのニックネームは既に使われています",
+      );
       return NextResponse.redirect(redirectUrl, 303);
     }
 

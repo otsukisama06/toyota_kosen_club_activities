@@ -251,3 +251,32 @@
   border-color: var(--surface-border);
   background: var(--surface);
 }
+
+.notice a,
+.meta a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.codeInput {
+  font-size: 22px !important;
+  letter-spacing: 0.4em;
+  text-align: center;
+}
+
+.inlineForm {
+  display: flex;
+  justify-content: center;
+}
+
+.linkButton {
+  background: none;
+  border: none;
+  padding: 4px;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 14px;
+  text-decoration: underline;
+  cursor: pointer;
+}

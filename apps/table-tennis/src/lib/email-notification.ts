@@ -1,5 +1,8 @@
 const RESEND_SEND_EMAIL_ENDPOINT = "https://api.resend.com/emails";
 
+// メール件名・本文に使う部活名です。
+export const CLUB_EMAIL_LABEL = "卓球部";
+
 type SendEmailArgs = {
   to: string;
   message: string;
