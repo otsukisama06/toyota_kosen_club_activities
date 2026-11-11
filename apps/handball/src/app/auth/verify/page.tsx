@@ -58,7 +58,7 @@ export default async function VerifyPage({ searchParams }: PageProps) {
           </form>
           <form action="/api/auth/resend" method="post" className={styles.inlineForm}>
             <button type="submit" className={styles.linkButton}>
-              {waitSeconds > 0 ? `コードが届かない場合は${waitSeconds}秒後に再送信できます` : "確認コードを再送信する"}
+              {waitSeconds > 0 ? `再送信は${waitSeconds}秒後にできます` : "確認コードを再送信する"}
             </button>
           </form>
           <p className={styles.meta}>
