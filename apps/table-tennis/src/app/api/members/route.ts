@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthorizedAdminMember } from "@/lib/admin-access";
 import { buildAppUrl } from "@/lib/request-utils";
+import { MEMBER_AUTH_FIELDS_OMIT } from "@/lib/member-fields";
 
 // 管理画面の部員一覧取得と新規登録を扱います。
 
@@ -10,7 +11,9 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // メールアドレスは管理画面に入れるユーザーにのみ返します。パスワード等の認証情報は返しません。
   const members = await prisma.member.findMany({
+    omit: MEMBER_AUTH_FIELDS_OMIT,
     orderBy: { createdAt: "asc" },
   });
 

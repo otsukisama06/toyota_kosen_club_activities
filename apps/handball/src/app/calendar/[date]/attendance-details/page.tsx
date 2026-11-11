@@ -7,6 +7,7 @@ import { autoMarkPreviousDayUnansweredAsAbsent } from "@/lib/attendance-auto-abs
 import { filterOutSuperAdminMembers } from "@/lib/admin-access";
 import { getSessionMember } from "@/lib/member-session";
 import { prisma } from "@/lib/prisma";
+import { MEMBER_PUBLIC_SELECT } from "@/lib/member-fields";
 import styles from "@/app/member-page-shared.module.css";
 import { sortMembersByGradeAscending } from "@/lib/member-sort";
 
@@ -94,7 +95,7 @@ export default async function AttendanceDetailsPage({ params }: PageProps) {
       },
       include: {
         records: {
-          include: { member: true },
+          include: { member: { select: MEMBER_PUBLIC_SELECT } },
         },
       },
       orderBy: { scheduledAt: "asc" },

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthorizedAdminMember } from "@/lib/admin-access";
+import { MEMBER_AUTH_FIELDS_OMIT } from "@/lib/member-fields";
 
 // 管理画面でまとめて使うデータを返す API です。
 
@@ -10,15 +11,15 @@ export async function GET() {
   }
 
   const [members, events, attendanceRecords, links] = await Promise.all([
-    prisma.member.findMany({ orderBy: { createdAt: "asc" } }),
+    prisma.member.findMany({ omit: MEMBER_AUTH_FIELDS_OMIT, orderBy: { createdAt: "asc" } }),
     prisma.attendanceEvent.findMany({ orderBy: { scheduledAt: "desc" } }),
     prisma.attendanceRecord.findMany({
-      include: { member: true, event: true },
+      include: { member: { omit: MEMBER_AUTH_FIELDS_OMIT }, event: true },
       orderBy: { submittedAt: "desc" },
       take: 50,
     }),
     prisma.inputToken.findMany({
-      include: { member: true, event: true },
+      include: { member: { omit: MEMBER_AUTH_FIELDS_OMIT }, event: true },
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
