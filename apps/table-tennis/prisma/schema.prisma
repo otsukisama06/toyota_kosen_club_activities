@@ -70,6 +70,7 @@ model Member {
   createdAt           DateTime           @default(now())
   attendances         AttendanceRecord[]
   authChallenges      AuthChallenge[]
+  emailBroadcasts     EmailBroadcast[]
   weights             WeightRecord[]
   tokens              InputToken[]
   createdPracticeMenus PracticeMenu[]    @relation("CreatedPracticeMenus")
@@ -425,4 +426,20 @@ model AuthChallenge {
 
   @@index([memberId])
   @@index([expiresAt])
+}
+
+/// スーパーアドミンが送信したメール一斉送信の履歴です。
+model EmailBroadcast {
+  id              String   @id @default(cuid())
+  subject         String
+  body            String
+  targetSummary   String
+  recipientCount  Int
+  sentCount       Int
+  failedCount     Int
+  createdById     String?
+  createdBy       Member?  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
 }

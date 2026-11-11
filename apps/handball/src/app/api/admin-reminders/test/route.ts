@@ -6,7 +6,7 @@ import { sendTestConfirmationEmailToAllMembers } from "@/lib/attendance-reminder
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
-  const redirectTo = String(formData.get("redirectTo") || "/admin/super-admin");
+  const redirectTo = String(formData.get("redirectTo") || "/super-admin/mail");
   const redirectUrl = buildAppUrl(request, redirectTo);
 
   const member = await getSessionMember();

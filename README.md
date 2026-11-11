@@ -27,6 +27,11 @@
 - データベースは部活ごとに分離
   - `handball_notes`
   - `table_tennis_notes`
+- スーパーアドミン画面（`/super-admin`、`admin` ニックネームのアカウントのみ）
+  - 入り方: admin でログイン → プロフィール画面の「スーパーアドミン」ボタン、または管理画面の「管理者専用機能」→「スーパーアドミン画面」（旧 `/admin/super-admin` は自動で移動）
+  - ダッシュボード: 部員数・メール/パスワード設定状況・ログイン制限中の人数・通達・フィードバック件数・サーバ概要
+  - メール一斉送信: 全部員／役職／学年／パスワード未設定者／個別選択で送信（宛先ごとに個別送信、`{nickname}` 差し込み、送信履歴を保存）
+  - 通達メッセージ、部員アカウント（ロック解除・強制ログアウト）、サーバ状態、データ管理（予定全削除・DB軽量化）、リリースノート、フィードバック
 - メール送信元アドレス: 弓道は `kyudo@toyotakosenclubnotes.cc` 固定、卓球は `ATTENDANCE_REMINDER_EMAIL_FROM` / `EMAIL_FROM`
 - LINE通知は卓球のみ（`TABLE_TENNIS_LINE_MESSAGING_API_CHANNEL_ACCESS_TOKEN` / `TABLE_TENNIS_LINE_MESSAGING_API_TARGET_ID`）。弓道はLINE通知なし
 

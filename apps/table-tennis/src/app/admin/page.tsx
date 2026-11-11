@@ -132,11 +132,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <div className={styles.inlineActions}>
           {canManageSuperAdminFeatures ? (
             <>
-              <Link className={styles.linkButton} href="/admin/super-admin">
-                admin 専用画面
-              </Link>
-              <Link className={styles.linkButton} href="/admin/feedback">
-                フィードバック一覧
+              <Link className={styles.linkButton} href="/super-admin">
+                スーパーアドミン画面
               </Link>
             </>
           ) : null}
