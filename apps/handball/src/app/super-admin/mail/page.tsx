@@ -61,12 +61,12 @@ export default async function SuperAdminMailPage({ searchParams }: PageProps) {
       </section>
 
       <section className={styles.card}>
-        <h2>出欠確認メールのテスト送信</h2>
-        <p className={styles.meta}>出欠リマインダーと同じ形式のテストメールを、メール登録済みの全部員へ送信します（admin は除外）。</p>
+        <h2>出欠確認 LINE 通知のテスト送信</h2>
+        <p className={styles.meta}>弓道部の出欠確認はメールではなく LINE で行います。練習・試合の開始45分前に届くのと同じ LINE グループへ、テストメッセージを1通送信します。</p>
         <form action="/api/admin-reminders/test" method="post" className={styles.form}>
           <input type="hidden" name="redirectTo" value="/super-admin/mail" />
           <div className={styles.actions}>
-            <button type="submit" className={styles.secondaryButton}>部員へ確認メールをテスト送信する</button>
+            <button type="submit" className={styles.secondaryButton}>LINE へテスト送信する</button>
           </div>
         </form>
       </section>

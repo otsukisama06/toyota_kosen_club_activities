@@ -1,5 +1,6 @@
 import { formatBytes, formatUptimeDhms, getRaspberryPiStatus } from "@/lib/system-status";
 import { isAttendanceReminderEmailEnabled } from "@/lib/email-notification";
+import { isLineNotificationEnabled } from "@/lib/line-notification";
 import { requireSuperAdminPage } from "@/lib/super-admin";
 import styles from "../super-admin.module.css";
 
@@ -9,6 +10,7 @@ export default async function SuperAdminSystemPage() {
   await requireSuperAdminPage();
   const status = await getRaspberryPiStatus();
   const emailEnabled = isAttendanceReminderEmailEnabled();
+  const lineEnabled = isLineNotificationEnabled();
 
   return (
     <>
@@ -23,6 +25,7 @@ export default async function SuperAdminSystemPage() {
         <div className={styles.stat}><span>メモリ空き</span><strong style={{ fontSize: 18 }}>{(status.memory.freeBytes / 1024 / 1024).toFixed(0)} / {(status.memory.totalBytes / 1024 / 1024).toFixed(0)} MB</strong></div>
         <div className={`${styles.stat} ${(status.disk.usagePercent ?? 0) >= 90 ? styles.statAlert : ""}`}><span>ディスク使用率</span><strong>{status.disk.usagePercent !== null ? `${status.disk.usagePercent}%` : "N/A"}</strong></div>
         <div className={`${styles.stat} ${emailEnabled ? "" : styles.statAlert}`}><span>メール送信設定</span><strong style={{ fontSize: 18 }}>{emailEnabled ? "設定済み" : "未設定"}</strong></div>
+        <div className={`${styles.stat} ${lineEnabled ? "" : styles.statAlert}`}><span>LINE通知設定</span><strong style={{ fontSize: 18 }}>{lineEnabled ? "設定済み" : "未設定"}</strong></div>
       </section>
 
       <section className={styles.card}>

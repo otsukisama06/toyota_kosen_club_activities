@@ -20,7 +20,7 @@
   - パスワード再設定: 登録メールアドレスに届く確認コードで再設定（部活共通パスワード時代の既存ユーザの初回設定も同じ画面）
   - 確認コードは10分有効・5回まで入力可・再送信は60秒間隔。パスワードを10回間違えると15分ロック
   - メールが未登録の既存ユーザは、管理画面の部員詳細でメールアドレスを登録してから設定する
-  - 確認コードのメール送信に `ATTENDANCE_REMINDER_EMAIL_API_KEY`（または `RESEND_API_KEY`）が必須。卓球は送信元 `ATTENDANCE_REMINDER_EMAIL_FROM`（または `EMAIL_FROM`）も必須
+  - 確認コードのメール送信に Brevo の `BREVO_API_KEY` が必須。卓球は送信元 `ATTENDANCE_REMINDER_EMAIL_FROM`（または `EMAIL_FROM`）も必須
 - `admin` の追加確認パスワードは環境変数で設定
   - `HANDBALL_SUPER_ADMIN_LOGIN_PASSWORD`
   - `TABLE_TENNIS_SUPER_ADMIN_LOGIN_PASSWORD`
@@ -36,8 +36,11 @@
   - admin でログイン中は全画面のヘッダー直下に表示。卓球部・弓道部それぞれの「メイン／管理画面／スーパーアドミン」へボタン一つで移動できる
   - 相手アプリへは60秒有効・1回限りの署名付きトークンで移動し、相手アプリの admin アカウントで自動ログインする（相手アプリにも admin アカウントの登録が必要）
   - 署名鍵 `CLUB_SWITCH_SECRET` は未設定ならゲートウェイが起動時に自動生成して両アプリへ渡す
-- メール送信元アドレス: 弓道は `kyudo@toyotakosenclubnotes.cc` 固定、卓球は `ATTENDANCE_REMINDER_EMAIL_FROM` / `EMAIL_FROM`
-- LINE通知は卓球のみ（`TABLE_TENNIS_LINE_MESSAGING_API_CHANNEL_ACCESS_TOKEN` / `TABLE_TENNIS_LINE_MESSAGING_API_TARGET_ID`）。弓道はLINE通知なし
+- メール送信は Brevo（両部で1つのアカウント・`BREVO_API_KEY` を共有）。送信元アドレスは弓道が `kyudo@toyotakosenclubnotes.cc` 固定、卓球は `ATTENDANCE_REMINDER_EMAIL_FROM` / `EMAIL_FROM`（どちらも Brevo で認証済みのドメインであること）
+- 出欠確認（練習・試合開始45分前のお願い）
+  - 卓球: 部員ごとにメールで送信
+  - 弓道: メールは使わず、LINE グループへ1通送信（`HANDBALL_LINE_MESSAGING_API_CHANNEL_ACCESS_TOKEN` / `HANDBALL_LINE_MESSAGING_API_TARGET_ID`）。スーパーアドミンの「メール一斉送信」画面からテスト送信できる
+- 卓球の LINE 通知はタスク締め切り通知（`TABLE_TENNIS_LINE_MESSAGING_API_CHANNEL_ACCESS_TOKEN` / `TABLE_TENNIS_LINE_MESSAGING_API_TARGET_ID`）
 
 ## データ永続化
 
@@ -310,14 +313,17 @@ HANDBALL_SUPER_ADMIN_LOGIN_PASSWORD=管理者用パスワード
 TABLE_TENNIS_SUPER_ADMIN_NICKNAME=admin
 TABLE_TENNIS_SUPER_ADMIN_LOGIN_PASSWORD=管理者用パスワード
 
-# === LINE Messaging API（オプション）===
+# === LINE Messaging API ===
+# 卓球: タスク締め切り通知（オプション）
 TABLE_TENNIS_LINE_MESSAGING_API_CHANNEL_ACCESS_TOKEN=
 TABLE_TENNIS_LINE_MESSAGING_API_TARGET_ID=
+# 弓道: 出欠確認の通知（出欠確認は LINE で行うため実質必須）
+HANDBALL_LINE_MESSAGING_API_CHANNEL_ACCESS_TOKEN=
+HANDBALL_LINE_MESSAGING_API_TARGET_ID=
 
-# === メール送信（ログイン確認コードの送信に必須）===
-ATTENDANCE_REMINDER_EMAIL_API_KEY=
+# === メール送信（Brevo、ログイン確認コードの送信に必須）===
+BREVO_API_KEY=
 ATTENDANCE_REMINDER_EMAIL_FROM=
-RESEND_API_KEY=
 EMAIL_FROM=
 ```
 
@@ -512,7 +518,7 @@ docker compose logs -f app
 | `POSTGRES_PASSWORD` | PostgreSQLパスワード | 強力なパスワード |
 | `HANDBALL_ADMIN_VIEW_KEY` | ハンドボール管理画面キー | ランダム文字列 |
 | `TABLE_TENNIS_ADMIN_VIEW_KEY` | 卓球管理画面キー | ランダム文字列 |
-| `ATTENDANCE_REMINDER_EMAIL_API_KEY` または `RESEND_API_KEY` | メール送信APIキー（ログイン確認コードの送信に必須） | `re_...` |
+| `BREVO_API_KEY` | Brevo のメール送信APIキー（ログイン確認コードの送信に必須） | `xkeysib-...` |
 | `ATTENDANCE_REMINDER_EMAIL_FROM` または `EMAIL_FROM` | 卓球の送信元メールアドレス（弓道は固定） | `table-tennis@example.com` |
 | `HANDBALL_SUPER_ADMIN_LOGIN_PASSWORD` | ハンドボール管理者パスワード | 強力なパスワード |
 | `TABLE_TENNIS_SUPER_ADMIN_LOGIN_PASSWORD` | 卓球管理者パスワード | 強力なパスワード |
@@ -521,12 +527,10 @@ docker compose logs -f app
 
 | 変数名 | 説明 |
 |--------|------|
-| `TABLE_TENNIS_LINE_MESSAGING_API_CHANNEL_ACCESS_TOKEN` | LINE Messaging APIチャントークン |
-| `TABLE_TENNIS_LINE_MESSAGING_API_TARGET_ID` | LINE Messaging API送信先ID |
-| `ATTENDANCE_REMINDER_EMAIL_API_KEY` | 出席リマインダーメールAPIキー |
-| `ATTENDANCE_REMINDER_EMAIL_FROM` | 送信元メールアドレス |
-| `RESEND_API_KEY` | ResendメールAPIキー |
-| `EMAIL_FROM` | メール送信元アドレス |
+| `HANDBALL_LINE_MESSAGING_API_CHANNEL_ACCESS_TOKEN` | 弓道の出欠確認用 LINE Messaging API チャネルアクセストークン（未設定だと弓道の出欠確認通知が送られない） |
+| `HANDBALL_LINE_MESSAGING_API_TARGET_ID` | 弓道の出欠確認の送信先ID（部員の LINE グループの groupId） |
+| `TABLE_TENNIS_LINE_MESSAGING_API_CHANNEL_ACCESS_TOKEN` | 卓球の LINE Messaging API チャネルアクセストークン |
+| `TABLE_TENNIS_LINE_MESSAGING_API_TARGET_ID` | 卓球の LINE Messaging API 送信先ID |
 
 ## Cloudflare で有効化を推奨する設定
 

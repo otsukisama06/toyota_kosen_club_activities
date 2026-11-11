@@ -1,7 +1,6 @@
 import { AttendanceEventType } from "@prisma/client";
 import { formatDateTime, toDateKey } from "@/lib/date-format";
-import { isAttendanceReminderEmailEnabled, sendAttendanceReminderEmail } from "@/lib/email-notification";
-import { isSuperAdminNickname } from "@/lib/admin-access";
+import { isLineNotificationEnabled, sendLineNotification } from "@/lib/line-notification";
 import { prisma } from "@/lib/prisma";
 
 const REMINDER_LEAD_MINUTES = 45;
@@ -62,7 +61,8 @@ function buildReminderMessage(event: AttendanceEventReminder): string {
 }
 
 async function sweepOnce(): Promise<ReminderSweepResult> {
-  if (!isAttendanceReminderEmailEnabled()) {
+  // 弓道部の出欠確認は部員ごとのメールではなく、LINE グループへ1通だけ送ります。
+  if (!isLineNotificationEnabled()) {
     return { scanned: 0, sent: 0, skipped: true };
   }
 
@@ -101,64 +101,22 @@ async function sweepOnce(): Promise<ReminderSweepResult> {
       },
     });
 
-    const recipientMembers = await prisma.member.findMany({
-      where: {
-        email: {
-          not: null,
-        },
-      },
-      select: {
-        nickname: true,
-        email: true,
-      },
-    });
-
-    const recipientEmails = recipientMembers
-      .filter((member) => !isSuperAdminNickname(member.nickname))
-      .map((member) => member.email?.trim() || "")
-      .filter((email) => email.length > 0);
-
     let sentCount = 0;
 
     for (const event of dueEvents) {
-      const message = buildReminderMessage(event);
-      if (recipientEmails.length === 0) {
-        console.warn("Attendance reminder skipped because no recipient emails are registered", {
-          eventId: event.id,
-        });
-        continue;
-      }
+      const result = await sendLineNotification(buildReminderMessage(event));
 
-      let deliveredCount = 0;
-
-      for (const recipientEmail of recipientEmails) {
-        const perRecipientResult = await sendAttendanceReminderEmail({
-          to: recipientEmail,
-          message,
-        });
-
-        if (perRecipientResult.sent) {
-          deliveredCount += 1;
-        } else if (!perRecipientResult.skipped) {
-          console.error("Attendance reminder email failed", {
-            eventId: event.id,
-            recipients: 1,
-            status: perRecipientResult.status,
-            error: perRecipientResult.error,
-          });
-        }
-      }
-
-      if (deliveredCount > 0) {
+      if (result.sent) {
         await prisma.attendanceEvent.update({
           where: { id: event.id },
           data: { reminderSentAt: new Date() },
         });
         sentCount += 1;
-      } else {
-        console.warn("Attendance reminder had no successful email delivery", {
+      } else if (!result.skipped) {
+        console.error("Attendance reminder LINE notification failed", {
           eventId: event.id,
-          recipients: recipientEmails.length,
+          status: result.status,
+          error: result.error,
         });
       }
     }
@@ -173,60 +131,29 @@ export async function sendDueAttendanceReminders(): Promise<ReminderSweepResult>
   return sweepOnce();
 }
 
-export async function sendTestConfirmationEmailToAllMembers(): Promise<{ total: number; sent: number }> {
-  if (!isAttendanceReminderEmailEnabled()) {
-    return { total: 0, sent: 0 };
-  }
-
-  const recipients = await prisma.member.findMany({
-    where: {
-      email: {
-        not: null,
-      },
-    },
-    select: {
-      nickname: true,
-      email: true,
-    },
-  });
-
-  const emails = recipients
-    .filter((member) => !isSuperAdminNickname(member.nickname))
-    .map((member) => member.email?.trim() || "")
-    .filter((email) => email.length > 0);
-
-  if (emails.length === 0) {
-    return { total: 0, sent: 0 };
+// 出欠確認の LINE 通知が届くかどうかを、設定済みの LINE グループへテスト送信して確認します。
+export async function sendTestAttendanceLineNotification(): Promise<{ sent: boolean; error?: string }> {
+  if (!isLineNotificationEnabled()) {
+    return { sent: false, error: "LINE 通知の設定（チャネルアクセストークン・送信先ID）が未設定です" };
   }
 
   const baseUrl = getPublicBaseUrl();
   const message = [
-    "【テスト送信】出欠確認メール送信機能の確認です。",
-    "出欠登録をお願いします。",
+    "【弓道部】出欠確認 LINE 通知のテスト送信です。",
+    "練習・試合の開始45分前に、このグループへ出欠登録のお願いが届きます。",
     `確認: ${new URL("/", `${baseUrl}/`).toString()}`,
   ].join("\n");
 
-  let deliveredCount = 0;
-
-  for (const email of emails) {
-    const result = await sendAttendanceReminderEmail({
-      to: email,
-      subject: "【弓道部】出欠確認メール（テスト送信）",
-      message,
+  const result = await sendLineNotification(message);
+  if (!result.sent) {
+    console.error("Test attendance LINE notification failed", {
+      status: result.status,
+      error: result.error,
     });
-
-    if (result.sent) {
-      deliveredCount += 1;
-    } else if (!result.skipped) {
-      console.error("Test confirmation email failed", {
-        recipients: 1,
-        status: result.status,
-        error: result.error,
-      });
-    }
+    return { sent: false, error: "LINE への送信に失敗しました。トークンと送信先IDを確認してください" };
   }
 
-  return { total: emails.length, sent: deliveredCount };
+  return { sent: true };
 }
 
 export function startAttendanceReminderScheduler(): void {

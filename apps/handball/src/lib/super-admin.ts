@@ -179,9 +179,8 @@ export function describeOkParam(ok: string | undefined): string | null {
   if (OK_MESSAGES[ok]) {
     return OK_MESSAGES[ok];
   }
-  const testMail = ok.match(/^test-mail-sent-(\d+)$/);
-  if (testMail) {
-    return `確認メールをテスト送信しました（${testMail[1]}件）`;
+  if (ok === "test-line-sent") {
+    return "出欠確認の LINE 通知をテスト送信しました";
   }
   const broadcast = ok.match(/^broadcast-sent-(\d+)-(\d+)$/);
   if (broadcast) {
