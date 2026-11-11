@@ -132,3 +132,66 @@ button {
     font-size: 12px;
   }
 }
+
+/* スーパーアドミン用の部活切り替えバー */
+.superAdminBar {
+  position: relative;
+  z-index: 900;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin: 0 0 12px;
+  padding: 8px 16px;
+  background: #161b22;
+  color: #e6edf3;
+  font-size: 13px;
+}
+
+.superAdminBarTitle {
+  font-weight: 800;
+  color: #ffd166;
+  letter-spacing: 0.04em;
+}
+
+.superAdminBarGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.superAdminBarLabel {
+  font-weight: 700;
+  color: #c9d4de;
+}
+
+.superAdminBarButton {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #3a4552;
+  background: #232b35;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.superAdminBarButton:hover {
+  background: #2f81f7;
+  border-color: #2f81f7;
+}
+
+.superAdminBarPeer {
+  background: #1f6f43;
+  border-color: #2a8a55;
+}
+
+.superAdminBarNote {
+  color: #9aa7b4;
+}
