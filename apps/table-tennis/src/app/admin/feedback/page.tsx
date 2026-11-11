@@ -89,8 +89,8 @@ export default async function AdminFeedbackPage({ searchParams }: AdminFeedbackP
       <header className={styles.header}>
         <h1>フィードバック一覧</h1>
         <p>メイン画面から送られたフィードバックを新しい順で表示します。</p>
-        <Link className={styles.linkButton} href="/admin">
-          管理画面へ戻る
+        <Link className={styles.linkButton} href="/super-admin">
+          スーパーアドミン画面へ戻る
         </Link>
       </header>
 

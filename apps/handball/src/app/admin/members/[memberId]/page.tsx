@@ -101,6 +101,23 @@ export default async function MemberOverviewPage({ params, searchParams }: PageP
           </label>
 
           <label style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <span>メールアドレス（ログインの確認コード送信先）</span>
+            <input
+              type="email"
+              name="email"
+              defaultValue={member.email || ""}
+              placeholder="例: player@example.com"
+              style={{
+                padding: "8px 12px",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                fontFamily: "inherit",
+                fontSize: "14px"
+              }}
+            />
+          </label>
+
+          <label style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <span>学年</span>
             <input
               type="text"

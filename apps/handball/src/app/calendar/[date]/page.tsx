@@ -7,6 +7,7 @@ import { getJstDayRangeFromDateKey } from "@/lib/date-format";
 import { LocalDate, LocalDateTime, LocalDateTimeRange } from "@/components/local-date-time";
 import { getSessionMember } from "@/lib/member-session";
 import { prisma } from "@/lib/prisma";
+import { MEMBER_PUBLIC_SELECT } from "@/lib/member-fields";
 import styles from "@/app/member-page-shared.module.css";
 import { AttendanceSubmitForm } from "./attendance-submit-form";
 import { EventDeleteButton } from "./event-delete-button";
@@ -86,7 +87,7 @@ export default async function CalendarDatePage({ params, searchParams }: PagePro
       },
       include: {
         records: {
-          include: { member: true },
+          include: { member: { select: MEMBER_PUBLIC_SELECT } },
         },
       },
       orderBy: { scheduledAt: "asc" },
@@ -108,7 +109,7 @@ export default async function CalendarDatePage({ params, searchParams }: PagePro
           lt: dayEnd,
         },
       },
-      include: { createdBy: true },
+      include: { createdBy: { select: MEMBER_PUBLIC_SELECT } },
       orderBy: { practiceDate: "asc" },
     }),
   ]);

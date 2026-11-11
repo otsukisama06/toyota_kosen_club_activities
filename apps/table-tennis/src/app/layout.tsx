@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { NavigationLoadingOverlay } from "@/components/navigation-loading-overlay";
 import { SiteCredit } from "@/components/site-credit";
+import { SuperAdminClubBar } from "@/components/super-admin-club-bar";
 import { GlobalReleaseNotesPopup } from "./global-release-notes-popup";
 import "./globals.css";
 
@@ -32,6 +33,9 @@ export default function RootLayout({
             ヘルプ
           </Link>
         </header>
+        <Suspense fallback={null}>
+          <SuperAdminClubBar />
+        </Suspense>
         <div className="appContent">{children}</div>
         <footer className="globalFooter" aria-label="クレジット表記">
           <SiteCredit />

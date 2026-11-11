@@ -1,31 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { memberAccountRegisterSchema } from "@/lib/form-schemas";
 import { isReservedSuperAdminNickname, isSuperAdminNickname, isValidSuperAdminLoginPassword } from "@/lib/admin-access";
-import { isValidClubPassword } from "@/lib/club-password";
-import { setMemberSession } from "@/lib/member-session";
+import { AuthCodeDeliveryError, type RegisterPayload, startAuthChallenge } from "@/lib/auth-challenge";
+import { hashPassword, validatePasswordStrength } from "@/lib/password";
 import { buildAppUrl } from "@/lib/request-utils";
 
+// 入力内容を確認してメールに確認コードを送ります。アカウントはコード確認後に作成します。
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
-  const redirectTo = String(formData.get("redirectTo") || "/auth");
-  const redirectUrl = buildAppUrl(request, redirectTo);
+  const redirectUrl = buildAppUrl(request, "/auth");
 
   const parsed = memberAccountRegisterSchema.safeParse({
     email: formData.get("email"),
     nickname: formData.get("nickname"),
     grade: formData.get("grade"),
+    password: formData.get("password"),
+    passwordConfirm: formData.get("passwordConfirm"),
   });
-  const clubPassword = String(formData.get("clubPassword") || "");
 
   if (!parsed.success) {
     redirectUrl.searchParams.set("error", parsed.error.issues[0]?.message || "入力値が不正です");
     return NextResponse.redirect(redirectUrl, 303);
   }
 
-  if (!isValidClubPassword(clubPassword)) {
-    redirectUrl.searchParams.set("error", "部活パスワードが正しくありません");
+  const passwordError = validatePasswordStrength(parsed.data.password);
+  if (passwordError) {
+    redirectUrl.searchParams.set("error", passwordError);
     return NextResponse.redirect(redirectUrl, 303);
   }
 
@@ -48,8 +49,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.redirect(redirectUrl, 303);
   }
 
-  const duplicatedEmail = await prisma.member.findUnique({
-    where: { email: parsed.data.email },
+  const duplicatedEmail = await prisma.member.findFirst({
+    where: { email: { equals: parsed.data.email, mode: "insensitive" } },
     select: { id: true },
   });
 
@@ -58,35 +59,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.redirect(redirectUrl, 303);
   }
 
-  try {
-    const createdMember = await prisma.member.create({
-      data: {
-        name: parsed.data.nickname,
-        nickname: parsed.data.nickname,
-        email: parsed.data.email,
-        grade: parsed.data.grade,
-        role: (registeringSuperAdmin ? "ADMIN" : "PLAYER") as never,
-        canAccessAdmin: registeringSuperAdmin,
-      },
-      select: { id: true },
-    });
+  const payload: RegisterPayload = {
+    nickname: parsed.data.nickname,
+    grade: parsed.data.grade,
+    passwordHash: await hashPassword(parsed.data.password),
+    isSuperAdmin: registeringSuperAdmin,
+  };
 
-    await setMemberSession(createdMember.id, request);
+  try {
+    await startAuthChallenge({ purpose: "REGISTER", email: parsed.data.email, payload }, request);
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      const target = Array.isArray(error.meta?.target) ? error.meta.target.join(",") : "";
-      if (target.includes("email")) {
-        redirectUrl.searchParams.set("error", "そのメールアドレスは既に使われています");
-      } else {
-        redirectUrl.searchParams.set("error", "そのニックネームは既に使われています");
-      }
+    if (error instanceof AuthCodeDeliveryError) {
+      redirectUrl.searchParams.set("error", error.message);
       return NextResponse.redirect(redirectUrl, 303);
     }
-
     throw error;
   }
 
-  const successUrl = buildAppUrl(request, "/");
-  successUrl.searchParams.set("ok", "registered");
-  return NextResponse.redirect(successUrl, 303);
+  return NextResponse.redirect(buildAppUrl(request, "/auth/verify"), 303);
 }

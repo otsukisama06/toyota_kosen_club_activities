@@ -1,4 +1,5 @@
 const { spawn, spawnSync } = require("node:child_process");
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const net = require("node:net");
 const path = require("node:path");
@@ -27,6 +28,8 @@ const handballTarget = `http://127.0.0.1:${HANDBALL_INTERNAL_PORT}`;
 const tableTennisTarget = `http://127.0.0.1:${TABLE_TENNIS_INTERNAL_PORT}`;
 
 const publicBaseUrl = process.env.PUBLIC_BASE_URL || `http://localhost:${LISTEN_PORT}`;
+// スーパーアドミンが弓道・卓球アプリを行き来するときの切り替えトークン署名鍵です。未設定なら起動ごとに生成して両アプリへ渡します。
+const CLUB_SWITCH_SECRET = String(process.env.CLUB_SWITCH_SECRET || "").trim() || crypto.randomBytes(32).toString("hex");
 
 const app = express();
 app.set("trust proxy", true);
@@ -82,8 +85,6 @@ function validateStartupSecrets() {
 
 	ensureRequiredEnv("HANDBALL_ADMIN_VIEW_KEY");
 	ensureRequiredEnv("TABLE_TENNIS_ADMIN_VIEW_KEY");
-	ensureRequiredEnv("HANDBALL_CLUB_PASSWORD");
-	ensureRequiredEnv("TABLE_TENNIS_CLUB_PASSWORD");
 	ensureRequiredEnv("HANDBALL_SUPER_ADMIN_LOGIN_PASSWORD");
 	ensureRequiredEnv("TABLE_TENNIS_SUPER_ADMIN_LOGIN_PASSWORD");
 }
@@ -301,7 +302,6 @@ function buildAppEnv(
 	adminKey,
 	nodeOptions,
 	appBaseUrl,
-	clubPassword,
 	superAdminNickname,
 	superAdminLoginPassword,
 ) {
@@ -310,9 +310,9 @@ function buildAppEnv(
 		DATABASE_URL: dbUrl,
 		PEER_DATABASE_URL: peerDbUrl,
 		ADMIN_VIEW_KEY: adminKey,
-		CLUB_PASSWORD: clubPassword,
 		SUPER_ADMIN_NICKNAME: superAdminNickname,
 		SUPER_ADMIN_LOGIN_PASSWORD: superAdminLoginPassword,
+		CLUB_SWITCH_SECRET,
 		NEXT_PUBLIC_APP_BASE_URL: appBaseUrl,
 		NODE_OPTIONS: nodeOptions,
 		HOSTNAME: "0.0.0.0",
@@ -329,7 +329,6 @@ async function startInternalApps() {
 		ensureRequiredEnv("HANDBALL_ADMIN_VIEW_KEY"),
 		process.env.HANDBALL_NODE_OPTIONS || "--max-old-space-size=384",
 		process.env.HANDBALL_PUBLIC_BASE_URL || `http://localhost:${HANDBALL_EXTERNAL_PORT}`,
-		ensureRequiredEnv("HANDBALL_CLUB_PASSWORD"),
 		process.env.HANDBALL_SUPER_ADMIN_NICKNAME || "admin",
 		ensureRequiredEnv("HANDBALL_SUPER_ADMIN_LOGIN_PASSWORD"),
 	);
@@ -340,7 +339,6 @@ async function startInternalApps() {
 		ensureRequiredEnv("TABLE_TENNIS_ADMIN_VIEW_KEY"),
 		process.env.TABLE_TENNIS_NODE_OPTIONS || "--max-old-space-size=384",
 		process.env.TABLE_TENNIS_PUBLIC_BASE_URL || `http://localhost:${TABLE_TENNIS_EXTERNAL_PORT}`,
-		ensureRequiredEnv("TABLE_TENNIS_CLUB_PASSWORD"),
 		process.env.TABLE_TENNIS_SUPER_ADMIN_NICKNAME || "admin",
 		ensureRequiredEnv("TABLE_TENNIS_SUPER_ADMIN_LOGIN_PASSWORD"),
 	);
@@ -513,6 +511,26 @@ app.post("/select", express.urlencoded({ extended: false }), (req, res) => {
 	res.redirect(303, "/auth");
 });
 
+// スーパーアドミン用: 表示する部活アプリを切り替え、移動先アプリでトークンを検証してもらいます。
+app.get("/switch-app", (req, res) => {
+	const to = String(req.query.to || "");
+	const token = String(req.query.token || "");
+	if ((to !== HAND && to !== TT) || !token) {
+		res.redirect(303, "/");
+		return;
+	}
+
+	const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim().toLowerCase();
+	res.cookie(SPORT_COOKIE, to, {
+		httpOnly: true,
+		sameSite: "lax",
+		secure: forwardedProto === "https" || req.secure,
+		path: "/",
+		maxAge: 60 * 60 * 24 * 30 * 1000,
+	});
+	res.redirect(303, `/api/auth/club-switch?token=${encodeURIComponent(token)}`);
+});
+
 app.get("/switch-club", (req, res) => {
 	res.clearCookie(SPORT_COOKIE, {
 		path: "/",
@@ -527,6 +545,7 @@ app.use((req, res, next) => {
 		|| req.path === "/select"
 		|| req.path === "/health"
 		|| req.path === "/switch-club"
+		|| req.path === "/switch-app"
 		|| req.path.startsWith("/assets/")
 	) {
 		next();

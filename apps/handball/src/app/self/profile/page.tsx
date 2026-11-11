@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionMember } from "@/lib/member-session";
+import { isSuperAdminNickname } from "@/lib/admin-access";
 import styles from "../self-pages.module.css";
 
 type ProfilePageProps = {
@@ -30,6 +31,9 @@ export default async function SelfProfilePage({ searchParams }: ProfilePageProps
         <header className={styles.header}>
           <Link href={backHref} className={styles.backLink}>カレンダーに戻る</Link>
           <div className={styles.topActions}>
+            {isSuperAdminNickname(member.nickname) ? (
+              <Link href="/super-admin" className={styles.adminLink}>スーパーアドミン</Link>
+            ) : null}
             <Link href="/admin" className={styles.adminLink}>管理画面を開く</Link>
             <form action="/api/auth/logout" method="post" className={styles.inlineForm}>
               <button type="submit" className={styles.logoutButton}>ログアウト</button>

@@ -69,6 +69,7 @@ export default async function ReleaseNotesPage({ searchParams }: PageProps) {
       </header>
 
       <nav className={styles.nav}>
+        <Link className={styles.secondaryLink} href="/super-admin">スーパーアドミン画面へ戻る</Link>
         <Link className={styles.secondaryLink} href="/admin">管理画面へ戻る</Link>
       </nav>
 

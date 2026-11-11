@@ -4,6 +4,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 
 const MEMBER_SESSION_COOKIE = "hbn_member_session";
+export const AUTH_CHALLENGE_COOKIE = "hbn_auth_challenge";
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30;
 
 export type SessionMember = {
@@ -20,7 +21,7 @@ export type SessionMember = {
   createdAt: Date;
 };
 
-function getSessionSecret(): string {
+export function getSessionSecret(): string {
   const explicitSecret = process.env.SESSION_SECRET?.trim();
   if (explicitSecret) {
     return explicitSecret;
@@ -30,7 +31,6 @@ function getSessionSecret(): string {
   const derivedSource = [
     process.env.ADMIN_VIEW_KEY,
     process.env.SUPER_ADMIN_LOGIN_PASSWORD,
-    process.env.CLUB_PASSWORD,
   ]
     .map((value) => value?.trim() || "")
     .join("\u0000");
@@ -45,45 +45,56 @@ function getSessionSecret(): string {
   return createHash("sha256").update(`member-session:${derivedSource}`).digest("hex");
 }
 
-function signMemberId(memberId: string): string {
-  return createHmac("sha256", getSessionSecret()).update(memberId).digest("base64url");
+// 任意の値に用途付きの HMAC 署名を付けます。
+export function signValue(purpose: string, value: string): string {
+  return createHmac("sha256", getSessionSecret()).update(`${purpose}:${value}`).digest("base64url");
 }
 
-function encodeSessionValue(memberId: string): string {
-  return `${memberId}.${signMemberId(memberId)}`;
+export function isValidSignature(purpose: string, value: string, signature: string): boolean {
+  const actual = Buffer.from(signature, "utf8");
+  const expected = Buffer.from(signValue(purpose, value), "utf8");
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
-// 署名付きCookieを検証し、改ざんされていなければ会員IDを返します。
-function decodeSessionValue(value: string | undefined): string | null {
+// Cookie 値は「会員ID.セッション世代.署名」です。パスワード変更で世代が変わると古いセッションは無効になります。
+function encodeSessionValue(memberId: string, sessionVersion: number): string {
+  const payload = `${memberId}.${sessionVersion}`;
+  return `${payload}.${signValue("member-session", payload)}`;
+}
+
+// 署名付きCookieを検証し、改ざんされていなければ会員IDとセッション世代を返します。
+function decodeSessionValue(value: string | undefined): { memberId: string; sessionVersion: number } | null {
   if (!value) {
     return null;
   }
 
-  const separatorIndex = value.lastIndexOf(".");
-  if (separatorIndex <= 0) {
+  const parts = value.split(".");
+  if (parts.length !== 3) {
     return null;
   }
 
-  const memberId = value.slice(0, separatorIndex);
-  const signature = Buffer.from(value.slice(separatorIndex + 1), "utf8");
-  const expected = Buffer.from(signMemberId(memberId), "utf8");
-  if (signature.length !== expected.length || !timingSafeEqual(signature, expected)) {
+  const [memberId, versionRaw, signature] = parts;
+  if (!memberId || !/^\d+$/.test(versionRaw)) {
     return null;
   }
 
-  return memberId;
+  if (!isValidSignature("member-session", `${memberId}.${versionRaw}`, signature)) {
+    return null;
+  }
+
+  return { memberId, sessionVersion: Number(versionRaw) };
 }
 
 export async function getSessionMember() {
   const cookieStore = await cookies();
-  const memberId = decodeSessionValue(cookieStore.get(MEMBER_SESSION_COOKIE)?.value);
+  const session = decodeSessionValue(cookieStore.get(MEMBER_SESSION_COOKIE)?.value);
 
-  if (!memberId) {
+  if (!session) {
     return null;
   }
 
   const member = await prisma.member.findUnique({
-    where: { id: memberId },
+    where: { id: session.memberId },
     select: {
       id: true,
       name: true,
@@ -94,15 +105,22 @@ export async function getSessionMember() {
       monthlyGoal: true,
       canAccessAdmin: true,
       role: true,
-        attendanceRateStartAt: true,
+      attendanceRateStartAt: true,
       createdAt: true,
+      sessionVersion: true,
     },
   });
 
-  return member as SessionMember | null;
+  if (!member || member.sessionVersion !== session.sessionVersion) {
+    return null;
+  }
+
+  const { sessionVersion: _sessionVersion, ...sessionMember } = member;
+  void _sessionVersion;
+  return sessionMember as SessionMember;
 }
 
-function shouldUseSecureCookie(request?: NextRequest): boolean {
+export function shouldUseSecureCookie(request?: NextRequest): boolean {
   if (!request) {
     return process.env.NODE_ENV === "production";
   }
@@ -116,8 +134,16 @@ function shouldUseSecureCookie(request?: NextRequest): boolean {
 }
 
 export async function setMemberSession(memberId: string, request?: NextRequest) {
+  const member = await prisma.member.findUnique({
+    where: { id: memberId },
+    select: { sessionVersion: true },
+  });
+  if (!member) {
+    throw new Error("Member not found");
+  }
+
   const cookieStore = await cookies();
-  cookieStore.set(MEMBER_SESSION_COOKIE, encodeSessionValue(memberId), {
+  cookieStore.set(MEMBER_SESSION_COOKIE, encodeSessionValue(memberId, member.sessionVersion), {
     httpOnly: true,
     sameSite: "lax",
     secure: shouldUseSecureCookie(request),

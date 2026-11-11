@@ -5,7 +5,7 @@ import { timingSafeEqual } from "node:crypto";
 const DEFAULT_SUPER_ADMIN_NICKNAME = "admin";
 const DEFAULT_SUPER_ADMIN_LOGIN_PASSWORD = "devdev";
 
-function getSuperAdminNickname(): string {
+export function getSuperAdminNickname(): string {
   return process.env.SUPER_ADMIN_NICKNAME?.trim() || DEFAULT_SUPER_ADMIN_NICKNAME;
 }
 

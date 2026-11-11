@@ -4,7 +4,7 @@ import { z } from "zod";
 const dateTimeLocalRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 const dateOrDateTimeRegex = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/;
 
-// 部員アカウントのニックネーム登録フォームです。
+// 部員アカウントの登録フォームです。
 export const memberAccountRegisterSchema = z.object({
   email: z.string().trim().email("メールアドレスの形式が不正です"),
   nickname: z
@@ -13,16 +13,38 @@ export const memberAccountRegisterSchema = z.object({
     .min(2, "ニックネームは2文字以上で入力してください")
     .max(20, "ニックネームは20文字以内で入力してください"),
   grade: z.string().trim().min(1, "学年を入力してください").max(20, "学年は20文字以内で入力してください"),
+  password: z.string().min(1, "パスワードを入力してください"),
+  passwordConfirm: z.string().min(1, "確認用パスワードを入力してください"),
+}).refine((value) => value.password === value.passwordConfirm, {
+  path: ["passwordConfirm"],
+  message: "パスワードと確認用パスワードが一致しません",
 });
 
-// ニックネームでログインするフォームです。
-export const nicknameLoginSchema = z.object({
-  nickname: z.string().trim().min(2, "ニックネームを入力してください"),
+// ニックネーム（またはメールアドレス）と個人パスワードでログインするフォームです。
+export const passwordLoginSchema = z.object({
+  loginId: z.string().trim().min(2, "ニックネームまたはメールアドレスを入力してください"),
+  password: z.string().min(1, "パスワードを入力してください"),
   adminPassword: z.string().optional(),
+});
+
+// パスワード再設定（初回設定を含む）の申請フォームです。
+export const passwordResetRequestSchema = z.object({
+  email: z.string().trim().email("メールアドレスの形式が不正です"),
+});
+
+// 確認コードと新しいパスワードを入力するフォームです。
+export const passwordResetConfirmSchema = z.object({
+  code: z.string().trim().min(1, "確認コードを入力してください"),
+  password: z.string().min(1, "新しいパスワードを入力してください"),
+  passwordConfirm: z.string().min(1, "確認用パスワードを入力してください"),
+}).refine((value) => value.password === value.passwordConfirm, {
+  path: ["passwordConfirm"],
+  message: "パスワードと確認用パスワードが一致しません",
 });
 
 // 管理画面の部員編集フォームです。
 export const memberUpdateSchema = z.object({
+  email: z.union([z.literal(""), z.string().trim().email("メールアドレスの形式が不正です")]).optional(),
   nickname: z
     .string()
     .trim()

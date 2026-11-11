@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
   const confirmText = String(formData.get("confirmText") || "");
   const executionPassword = String(formData.get("executionPassword") || "");
   const aggressive = parseBoolean(formData.get("aggressive"));
-  const redirectTo = String(formData.get("redirectTo") || "/admin/super-admin");
+  const redirectTo = String(formData.get("redirectTo") || "/super-admin/data");
   const redirectUrl = buildAppUrl(request, redirectTo);
 
   if (intent !== "compact-database") {

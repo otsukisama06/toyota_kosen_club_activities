@@ -25,6 +25,13 @@ enum AttendanceStatus {
 }
 
 /// 共有リンクの種類です。
+/// メール認証コードの用途です。
+enum AuthChallengePurpose {
+  LOGIN
+  REGISTER
+  PASSWORD_RESET
+}
+
 enum InputType {
   ATTENDANCE
   WEIGHT
@@ -48,6 +55,11 @@ model Member {
   name                String
   nickname            String?            @unique
   email               String?            @unique
+  passwordHash        String?
+  passwordUpdatedAt   DateTime?
+  sessionVersion      Int                @default(0)
+  failedLoginCount    Int                @default(0)
+  loginLockedUntil    DateTime?
   grade               String?
   yearlyGoal          String?
   monthlyGoal         String?
@@ -57,6 +69,8 @@ model Member {
    lastActivityAt      DateTime?
   createdAt           DateTime           @default(now())
   attendances         AttendanceRecord[]
+  authChallenges      AuthChallenge[]
+  emailBroadcasts     EmailBroadcast[]
   weights             WeightRecord[]
   tokens              InputToken[]
   createdPracticeMenus PracticeMenu[]    @relation("CreatedPracticeMenus")
@@ -392,5 +406,40 @@ model AdminAnnouncement {
   createdBy         Member   @relation("AnnouncementsCreatedBy", fields: [createdByMemberId], references: [id], onDelete: Cascade)
 
   @@index([startsAt, endsAt])
+  @@index([createdAt])
+}
+
+/// メールで送る6桁の認証コード（ログイン二段階認証・新規登録・パスワード再設定）です。
+model AuthChallenge {
+  id         String               @id @default(cuid())
+  purpose    AuthChallengePurpose
+  memberId   String?
+  member     Member?              @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  email      String
+  codeHash   String
+  payload    Json?
+  attempts   Int                  @default(0)
+  expiresAt  DateTime
+  sentAt     DateTime             @default(now())
+  consumedAt DateTime?
+  createdAt  DateTime             @default(now())
+
+  @@index([memberId])
+  @@index([expiresAt])
+}
+
+/// スーパーアドミンが送信したメール一斉送信の履歴です。
+model EmailBroadcast {
+  id              String   @id @default(cuid())
+  subject         String
+  body            String
+  targetSummary   String
+  recipientCount  Int
+  sentCount       Int
+  failedCount     Int
+  createdById     String?
+  createdBy       Member?  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+
   @@index([createdAt])
 }
